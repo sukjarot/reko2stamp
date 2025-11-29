@@ -193,6 +193,12 @@
       border: none; cursor: pointer; display: flex; align-items: center; 
       justify-content: center; gap: 6px;
     }
+	  /* ... css kamera yang sudah ada ... */
+
+    /* TAMBAHAN: Class untuk mirror efek pada video preview */
+    .selfie-mirror {
+      transform: scaleX(-1);
+    }
   </style>
 </head>
 <body>
@@ -702,7 +708,7 @@
     }
     
     draw();
-	// --- FITUR KAMERA LANJUTAN ---
+	// --- FITUR KAMERA LANJUTAN (DIPERBAIKI) ---
     
     const openCameraBtn = document.getElementById('openCameraBtn');
     const cameraModal = document.getElementById('cameraModal');
@@ -712,24 +718,25 @@
     const switchCamBtn = document.getElementById('switchCamBtn');
 
     let currentStream = null;
-    let facingMode = 'environment'; // Default kamera belakang
+    let facingMode = 'environment'; // Default: kamera belakang
 
     // 1. Buka Kamera
     openCameraBtn.addEventListener('click', async () => {
+        // Cek support browser
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Browser Anda tidak mendukung akses kamera.");
+            alert("Browser tidak mendukung akses kamera. Pastikan menggunakan HTTPS.");
             return;
         }
         await startCamera();
     });
 
     async function startCamera() {
-        if (currentStream) stopCamera(); // Stop stream lama jika ada
+        if (currentStream) stopCamera();
 
         const constraints = {
             video: {
                 facingMode: facingMode,
-                width: { ideal: 4096 }, // Minta resolusi tertinggi
+                width: { ideal: 4096 },
                 height: { ideal: 2160 }
             },
             audio: false
@@ -739,6 +746,14 @@
             currentStream = await navigator.mediaDevices.getUserMedia(constraints);
             cameraVideo.srcObject = currentStream;
             cameraModal.style.display = 'flex';
+            
+            // Terapkan efek cermin visual JIKA kamera depan
+            if (facingMode === 'user') {
+                cameraVideo.classList.add('selfie-mirror');
+            } else {
+                cameraVideo.classList.remove('selfie-mirror');
+            }
+
         } catch (err) {
             console.error(err);
             alert("Gagal akses kamera: " + err.message);
@@ -760,40 +775,47 @@
         cameraModal.style.display = 'none';
     });
 
-    // 3. Ganti Kamera (Depan/Belakang)
+    // 3. Ganti Kamera
     switchCamBtn.addEventListener('click', () => {
         facingMode = (facingMode === 'environment') ? 'user' : 'environment';
         startCamera();
     });
 
-    // 4. Ambil Foto (Shutter)
+    // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Mirror
     shutterBtn.addEventListener('click', () => {
         if (!currentStream) return;
 
-        // Buat canvas sementara untuk capture frame video
+        // Siapkan canvas sementara
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = cameraVideo.videoWidth;
-        tempCanvas.height = cameraVideo.videoHeight;
-        
         const tempCtx = tempCanvas.getContext('2d');
         
-        // Flip horizontal jika kamera depan (agar tidak mirror)
+        // Ambil dimensi asli video
+        const vWidth = cameraVideo.videoWidth;
+        const vHeight = cameraVideo.videoHeight;
+
+        // Set ukuran canvas sesuai video
+        tempCanvas.width = vWidth;
+        tempCanvas.height = vHeight;
+
+        // Logika Mirror: Hanya jika kamera depan ('user')
         if (facingMode === 'user') {
-            tempCtx.translate(tempCanvas.width, 0);
+            // Kita gunakan teknik translate & scale untuk membalik horizontal
+            tempCtx.translate(vWidth, 0);
             tempCtx.scale(-1, 1);
         }
 
-        tempCtx.drawImage(cameraVideo, 0, 0, tempCanvas.width, tempCanvas.height);
+        // Gambar video ke canvas
+        tempCtx.drawImage(cameraVideo, 0, 0, vWidth, vHeight);
 
-        // Konversi ke format gambar dan masukkan ke aplikasi utama
-        isNewFile = true; // Flag agar posisi stamp ter-reset
-        img.src = tempCanvas.toDataURL('image/jpeg', 1.0); // Kualitas maksimal
+        // Masukkan hasil ke aplikasi utama
+        isNewFile = true;
+        img.src = tempCanvas.toDataURL('image/jpeg', 1.0);
 
-        // Tutup modal kamera
+        // Tutup kamera
         stopCamera();
         cameraModal.style.display = 'none';
         
-        // Update waktu pengambilan ke 'Saat ini'
+        // Update waktu
         const nowClick = new Date();
         const localIsoClick = new Date(nowClick.getTime() - (nowClick.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         dtInput.value = localIsoClick;
@@ -801,4 +823,5 @@
 	
   </script>
 </body>
+
 </html>
