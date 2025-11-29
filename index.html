@@ -782,6 +782,7 @@
     });
 
     // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Mirror
+    // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Rotasi & Mirror Landscape
     shutterBtn.addEventListener('click', () => {
         if (!currentStream) return;
 
@@ -789,23 +790,49 @@
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         
-        // Ambil dimensi asli video
+        // Ambil dimensi asli stream video
         const vWidth = cameraVideo.videoWidth;
         const vHeight = cameraVideo.videoHeight;
 
-        // Set ukuran canvas sesuai video
-        tempCanvas.width = vWidth;
-        tempCanvas.height = vHeight;
+        // --- DETEKSI ORIENTASI ---
+        // Cek apakah layar user Landscape (Lebar > Tinggi)
+        const isLandscapeScreen = window.innerWidth > window.innerHeight;
+        // Cek apakah stream kamera masih Portrait (Tinggi > Lebar) - umum di HP
+        const isPortraitStream = vWidth < vHeight;
+        
+        // Jika layar Landscape tapi stream Portrait, berarti perlu diputar
+        const needRotation = isLandscapeScreen && isPortraitStream;
 
-        // Logika Mirror: Hanya jika kamera depan ('user')
+        // Atur ukuran Canvas Hasil
+        if (needRotation) {
+            // Tukar dimensi jika perlu rotasi
+            tempCanvas.width = vHeight;
+            tempCanvas.height = vWidth;
+        } else {
+            tempCanvas.width = vWidth;
+            tempCanvas.height = vHeight;
+        }
+
+        // --- TRANSFORMASI GEOMETRI ---
+        // Pindahkan titik origin ke tengah canvas untuk memudahkan rotasi/mirror
+        tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+
+        // 1. ROTASI (Jika perlu)
+        if (needRotation) {
+            // Putar -90 derajat (umumnya HP landscape butuh ini)
+            tempCtx.rotate(-90 * Math.PI / 180);
+        }
+
+        // 2. MIRROR (Khusus Kamera Depan)
         if (facingMode === 'user') {
-            // Kita gunakan teknik translate & scale untuk membalik horizontal
-            tempCtx.translate(vWidth, 0);
+            // Flip Horizontal (Mirroring)
+            // Dilakukan setelah rotasi agar axis-nya mengikuti gambar yang sudah tegak
             tempCtx.scale(-1, 1);
         }
 
-        // Gambar video ke canvas
-        tempCtx.drawImage(cameraVideo, 0, 0, vWidth, vHeight);
+        // --- GAMBAR VIDEO ---
+        // Gambar video dengan offset negatif setengah ukuran aslinya (karena origin ada di tengah)
+        tempCtx.drawImage(cameraVideo, -vWidth / 2, -vHeight / 2, vWidth, vHeight);
 
         // Masukkan hasil ke aplikasi utama
         isNewFile = true;
@@ -820,8 +847,8 @@
         const localIsoClick = new Date(nowClick.getTime() - (nowClick.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
         dtInput.value = localIsoClick;
     });
-	
   </script>
 </body>
 
 </html>
+
