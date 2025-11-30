@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Reko2stamp-ultimate (2.4)</title>
+  <title>Reko2stamp-Ultimate (2.4)</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon ultimate.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,9 +31,25 @@
     }
 
     header { 
-      height: 50px; background: var(--bg-panel); border-bottom: 1px solid #334155;
+      height: 60px; /* Sedikit dipertinggi agar cahaya neon leluasa */
+      background: var(--bg-panel); 
+      border-bottom: 1px solid #334155;
       display: flex; align-items: center; justify-content: center;
-      font-weight: 700; letter-spacing: 0.5px; z-index: 50;
+      z-index: 50;
+      
+      /* --- EFEK NEON FUTURISTIK --- */
+      font-family: 'Share Tech Mono', monospace; /* Font gaya digital */
+      font-size: 26px; /* Ukuran lebih besar */
+      color: #e0f2fe;  /* Warna dasar putih kebiruan */
+      letter-spacing: 2px; /* Spasi antar huruf agar elegan */
+      text-transform: uppercase; /* Huruf besar semua */
+      
+      /* Racikan Bayangan Neon Biru (Cyan) */
+      text-shadow: 
+          0 0 5px  rgba(6, 182, 212, 0.8),   /* Glow tajam dekat */
+          0 0 10px rgba(6, 182, 212, 0.6),   /* Glow menyebar */
+          0 0 20px rgba(59, 130, 246, 0.4),  /* Aura biru luar */
+          0 0 40px rgba(59, 130, 246, 0.2);  /* Atmosfer redup */
     }
 
     main { display: flex; flex-direction: row; height: calc(100vh - 50px); }
@@ -145,39 +161,31 @@
         box-shadow: 0 -4px 20px rgba(0,0,0,0.4); padding-bottom: 80px; 
       }
     }
-	/* --- TAMBAHAN UNTUK FITUR KAMERA --- */
-    
-    /* Ubah layout tombol buka file agar muat 2 tombol */
+
+    /* CSS KAMERA */
     .input-group-row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
     }
-    
-    /* Styling Modal Kamera Fullscreen */
     .camera-modal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; z-index: 9999;
       display: none; flex-direction: column;
     }
-    
     .camera-view {
       flex-grow: 1; width: 100%; height: 100%; object-fit: cover;
-      background: #000;
+      background: #000; transition: transform 0.3s ease;
     }
-
-    /* Overlay tombol kontrol kamera */
     .camera-controls {
       position: absolute; bottom: 30px; left: 0; width: 100%;
       display: flex; justify-content: space-around; align-items: center;
       padding: 0 20px;
     }
-
     .shutter-btn {
       width: 70px; height: 70px; border-radius: 50%;
       background: white; border: 4px solid rgba(255,255,255,0.3);
       cursor: pointer; transition: 0.2s;
     }
     .shutter-btn:active { transform: scale(0.9); background: #eee; }
-
     .cam-action-btn {
       background: rgba(255,255,255,0.2); border: none; color: white;
       padding: 12px; border-radius: 50%; cursor: pointer;
@@ -185,25 +193,17 @@
       display: flex; align-items: center; justify-content: center;
     }
     .cam-action-btn:hover { background: rgba(255,255,255,0.4); }
-
-    /* Tombol Kamera Baru di Sidebar */
     .btn-camera {
       background: linear-gradient(45deg, #059669, #10b981);
       color: white; font-weight: 600; border-radius: var(--radius);
       border: none; cursor: pointer; display: flex; align-items: center; 
       justify-content: center; gap: 6px;
     }
-	  /* ... css kamera yang sudah ada ... */
-
-    /* TAMBAHAN: Class untuk mirror efek pada video preview */
-    .selfie-mirror {
-      transform: scaleX(-1);
-    }
   </style>
 </head>
 <body>
 
-  <header>Reko2stamp-Ultimate (2.4)</header>
+  <header>Reko2stamp-Ultimate (2.5)</header>
 
   <main>
     <aside class="controls">
@@ -288,10 +288,13 @@
       <button id="clearBtn" class="main-btn btn-danger" style="margin-top: 10px; margin-bottom: 10px;">🗑 Hapus Foto</button>
 
       <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (Max 4MB)</button>
+    </aside>
+
     <section class="canvas-wrap" id="canvasContainer">
       <canvas id="canvas"></canvas>
     </section>
   </main>
+  
   <div id="cameraModal" class="camera-modal">
     <video id="cameraVideo" class="camera-view" autoplay playsinline></video>
     
@@ -301,14 +304,11 @@
       <button id="shutterBtn" class="shutter-btn" title="Ambil Foto"></button>
       <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
     </div>
-
-  <script>
+  </div> <script>
     // --- ELEMENTS ---
     const fileInput = document.getElementById('fileInput');
     const dtInput = document.getElementById('dtInput');
     const showDateToggle = document.getElementById('showDateToggle');
-    
-    // Location Elements
     const locInput = document.getElementById('locInput');
     const gpsBtn = document.getElementById('gpsBtn');
     const suggestionsBox = document.getElementById('suggestions');
@@ -347,111 +347,65 @@
     const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     dtInput.value = localIso;
 
-    // --- LOCATION INTELLIGENCE (AUTOCOMPLETE & GPS) ---
-    
-    // 1. GPS AUTO DETECT
+    // --- LOCATION INTELLIGENCE ---
     gpsBtn.addEventListener('click', () => {
-        if (!navigator.geolocation) {
-            alert("Browser tidak mendukung GPS."); return;
-        }
-        
+        if (!navigator.geolocation) { alert("Browser tidak mendukung GPS."); return; }
         const originalText = gpsBtn.innerHTML;
         gpsBtn.innerHTML = "⏳ Mencari...";
-        
         navigator.geolocation.getCurrentPosition(async (position) => {
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
-            
             try {
-                // Reverse Geocoding via Nominatim (Gratis)
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
                 const data = await response.json();
-                
-                // Ambil bagian alamat yang relevan
                 const addr = data.address;
                 const street = addr.road || addr.village || addr.suburb || '';
                 const city = addr.city || addr.town || addr.county || '';
                 const state = addr.state || '';
-                
-                // Format hasil ke Textarea
                 locInput.value = `${street}\n${city}, ${state}\n(Titik Koordinat: ${lat.toFixed(5)}, ${lon.toFixed(5)})`;
                 draw();
-            } catch (err) {
-                alert("Gagal mengambil alamat. Cek koneksi internet.");
-            } finally {
-                gpsBtn.innerHTML = originalText;
-            }
-        }, (err) => {
-            alert("Gagal akses GPS: " + err.message);
-            gpsBtn.innerHTML = originalText;
-        });
+            } catch (err) { alert("Gagal mengambil alamat."); } 
+            finally { gpsBtn.innerHTML = originalText; }
+        }, (err) => { alert("Gagal akses GPS."); gpsBtn.innerHTML = originalText; });
     });
 
-    // 2. AUTOCOMPLETE SUGGESTIONS
     let debounceTimer;
     locInput.addEventListener('input', (e) => {
-        draw(); // Update canvas real-time
-        
-        const query = e.target.value.split('\n')[0]; // Cari berdasarkan baris pertama saja
-        if (query.length < 3) {
-            suggestionsBox.style.display = 'none'; return;
-        }
-
+        draw(); 
+        const query = e.target.value.split('\n')[0];
+        if (query.length < 3) { suggestionsBox.style.display = 'none'; return; }
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
             try {
-                // Search via Nominatim
                 const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
                 const results = await res.json();
-                
                 if (results.length > 0) {
                     suggestionsBox.innerHTML = '';
                     results.forEach(place => {
                         const div = document.createElement('div');
                         div.className = 'suggestion-item';
                         div.textContent = place.display_name;
-                        div.onclick = () => {
-                            // Saat dipilih, isi ke textarea
-                            locInput.value = place.display_name;
-                            suggestionsBox.style.display = 'none';
-                            draw();
-                        };
+                        div.onclick = () => { locInput.value = place.display_name; suggestionsBox.style.display = 'none'; draw(); };
                         suggestionsBox.appendChild(div);
                     });
                     suggestionsBox.style.display = 'block';
-                } else {
-                    suggestionsBox.style.display = 'none';
-                }
-            } catch (err) {
-                // Silent fail jika offline
-            }
-        }, 500); // Tunggu 500ms setelah mengetik agar tidak spam API
+                } else { suggestionsBox.style.display = 'none'; }
+            } catch (err) {}
+        }, 500);
     });
-
-    // Tutup saran jika klik di luar
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.location-wrapper')) {
-            suggestionsBox.style.display = 'none';
-        }
-    });
-
+    document.addEventListener('click', (e) => { if (!e.target.closest('.location-wrapper')) suggestionsBox.style.display = 'none'; });
 
     // --- STANDARD APP LOGIC ---
     window.adjustSize = (amount) => {
-      let val = parseInt(sizeSlider.value);
-      val += amount;
+      let val = parseInt(sizeSlider.value); val += amount;
       if (val < parseInt(sizeSlider.min)) val = parseInt(sizeSlider.min);
       if (val > parseInt(sizeSlider.max)) val = parseInt(sizeSlider.max);
-      sizeSlider.value = val;
-      sizeValDisplay.textContent = val + 'px';
-      draw();
+      sizeSlider.value = val; sizeValDisplay.textContent = val + 'px'; draw();
     };
     sizeSlider.addEventListener('input', () => { sizeValDisplay.textContent = sizeSlider.value + 'px'; draw(); });
     opacitySlider.addEventListener('input', () => { opacityValDisplay.textContent = opacitySlider.value + '%'; draw(); });
 
-    function updateTransform() {
-      canvas.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale})`;
-    }
+    function updateTransform() { canvas.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale})`; }
 
     function draw() {
       if (!imgLoaded) { 
@@ -461,7 +415,6 @@
         ctx.fillText('Pilih Foto Dulu', 150, 150);
         return; 
       }
-
       ctx.clearRect(0,0,canvas.width,canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -505,18 +458,13 @@
           }
       }
       const loc = locInput.value.trim();
-      if (loc) {
-          if (text) text += '\n';
-          text += loc;
-      }
+      if (loc) { if (text) text += '\n'; text += loc; }
       return text;
     }
 
     function wrapText(text, x, y, maxWidth, lineHeight) {
       const lines = text.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], x, y + (i * lineHeight));
-      }
+      for (let i = 0; i < lines.length; i++) { ctx.fillText(lines[i], x, y + (i * lineHeight)); }
     }
 
     function setupHighResCanvas() {
@@ -573,43 +521,29 @@
         draw();
       }
     });
-// --- FITUR HAPUS FOTO ---
-clearBtn.addEventListener('click', () => {
-  if (!imgLoaded) return; // Jika tidak ada foto, diam saja
 
-  // Tanya user dulu biar tidak terhapus tidak sengaja
-  if (confirm('Yakin ingin menghapus foto dari canvas?')) {
-      // 1. Reset Objek Gambar
-      img = new Image();
-      imgLoaded = false;
-      isNewFile = false;
+    // --- FUNGSI HAPUS FOTO ---
+    clearBtn.addEventListener('click', () => {
+      if (!imgLoaded) return;
+      if (confirm('Yakin ingin menghapus foto dari canvas?')) {
+          img = new Image(); imgLoaded = false; isNewFile = false;
+          fileInput.value = ''; cropMode = false; cropRect = null;
+          toggleCropBtn.textContent = '✂ Potong';
+          toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
+          draw(); 
+      }
+    });
 
-      // 2. Reset Input File (agar bisa pilih file yang sama lagi jika mau)
-      fileInput.value = ''; 
-
-      // 3. Matikan Mode Potong jika aktif
-      cropMode = false; 
-      cropRect = null;
-      toggleCropBtn.textContent = '✂ Potong';
-      toggleCropBtn.classList.remove('btn-danger');
-      toggleCropBtn.classList.add('btn-secondary');
-
-      // 4. Gambar ulang (Canvas akan kembali hitam bertuliskan "Pilih Foto Dulu")
-      draw(); 
-  }
-});
     toggleCropBtn.addEventListener('click', () => {
       if (cropMode) {
         if (cropRect && cropRect.w > 50 && cropRect.h > 50) applyCrop();
         cropMode = false;
         toggleCropBtn.textContent = '✂ Potong';
-        toggleCropBtn.classList.remove('btn-danger');
-        toggleCropBtn.classList.add('btn-secondary');
+        toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
       } else {
         cropMode = true; cropRect = null;
         toggleCropBtn.textContent = '✅ Terapkan';
-        toggleCropBtn.classList.remove('btn-secondary');
-        toggleCropBtn.classList.add('btn-danger');
+        toggleCropBtn.classList.remove('btn-secondary'); toggleCropBtn.classList.add('btn-danger');
       }
       draw();
     });
@@ -733,22 +667,20 @@ clearBtn.addEventListener('click', () => {
     }
     
     draw();
-	// --- FITUR KAMERA LANJUTAN (FINAL FIX) ---
-    
+
+    // --- FITUR KAMERA LANJUTAN (FINAL FIX) ---
     const openCameraBtn = document.getElementById('openCameraBtn');
     const cameraModal = document.getElementById('cameraModal');
     const cameraVideo = document.getElementById('cameraVideo');
     const closeCamBtn = document.getElementById('closeCamBtn');
     const shutterBtn = document.getElementById('shutterBtn');
     const switchCamBtn = document.getElementById('switchCamBtn');
-    // Tombol baru
     const rotateCamBtn = document.getElementById('rotateCamBtn');
 
     let currentStream = null;
     let facingMode = 'environment'; 
-    let currentRotation = 0; // Menyimpan sudut putaran (0, 90, 180, 270)
+    let currentRotation = 0; 
 
-    // 1. Buka Kamera
     openCameraBtn.addEventListener('click', async () => {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             alert("Browser tidak mendukung akses kamera."); return;
@@ -758,7 +690,7 @@ clearBtn.addEventListener('click', () => {
 
     async function startCamera() {
         if (currentStream) stopCamera();
-        currentRotation = 0; // Reset putaran saat buka baru
+        currentRotation = 0; 
         updateVideoStyle();
 
         const constraints = {
@@ -786,41 +718,29 @@ clearBtn.addEventListener('click', () => {
 
     closeCamBtn.addEventListener('click', () => { stopCamera(); cameraModal.style.display = 'none'; });
 
-    // 2. Ganti Kamera (Depan/Belakang)
     switchCamBtn.addEventListener('click', () => {
         facingMode = (facingMode === 'environment') ? 'user' : 'environment';
         startCamera();
     });
 
-    // 3. FITUR BARU: Tombol Putar Manual
     rotateCamBtn.addEventListener('click', () => {
         currentRotation = (currentRotation + 90) % 360;
         updateVideoStyle();
     });
 
-    // Fungsi visual agar user melihat hasil putaran di layar HP
     function updateVideoStyle() {
-        // Logika CSS transform
         let transform = `rotate(${currentRotation}deg)`;
         if (facingMode === 'user') {
-            // Jika kamera depan, kita perlu mirror, tapi hati-hati dengan urutan transform
-            // Logic: Rotate dulu, baru Scale. 
-            // Note: Pada CSS, jika rotate 90deg, axis X/Y berubah. 
-            // Kita pakai urutan standar: scale dulu (mirror) baru rotate.
             transform = `rotate(${currentRotation}deg) scaleX(-1)`;
         }
         cameraVideo.style.transform = transform;
-        
-        // Sesuaikan ukuran agar tidak gepeng saat diputar 90/270 derajat
         if (currentRotation % 180 !== 0) {
-             // Jika miring (90 atau 270), object-fit contain agar masuk layar
              cameraVideo.style.objectFit = "contain";
         } else {
              cameraVideo.style.objectFit = "cover";
         }
     }
 
-    // 4. Ambil Foto (Shutter) - Sesuai Tampilan Layar
     shutterBtn.addEventListener('click', () => {
         if (!currentStream) return;
         const vW = cameraVideo.videoWidth;
@@ -829,8 +749,6 @@ clearBtn.addEventListener('click', () => {
         const tempCanvas = document.createElement('canvas');
         const ctx = tempCanvas.getContext('2d');
 
-        // Tentukan ukuran Canvas Akhir
-        // Jika diputar 90/270, Lebar & Tinggi canvas harus ditukar
         if (currentRotation % 180 !== 0) {
             tempCanvas.width = vH;
             tempCanvas.height = vW;
@@ -839,35 +757,24 @@ clearBtn.addEventListener('click', () => {
             tempCanvas.height = vH;
         }
 
-        // Pindahkan titik pusat ke tengah canvas untuk mempermudah rotasi
         ctx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
-
-        // 1. Putar Canvas sesuai tombol yang ditekan user
         ctx.rotate(currentRotation * Math.PI / 180);
 
-        // 2. Efek Cermin (Mirror) khusus Selfie
         if (facingMode === 'user') {
             ctx.scale(-1, 1);
         }
 
-        // 3. Gambar Video
-        // Karena titik pusat (0,0) sudah di tengah, kita gambar offset negatif setengah ukuran
         ctx.drawImage(cameraVideo, -vW / 2, -vH / 2, vW, vH);
-
-        // Simpan Hasil
         isNewFile = true;
         img.src = tempCanvas.toDataURL('image/jpeg', 1.0);
         stopCamera();
         cameraModal.style.display = 'none';
         
-        // Update Waktu
         const nowClick = new Date();
         dtInput.value = new Date(nowClick - (nowClick.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     });
-    
   </script>
 </body>
-
 </html>
 
 
