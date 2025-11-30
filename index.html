@@ -285,9 +285,9 @@
         <button id="toggleCrop" class="main-btn btn-secondary">✂ Potong</button>
       </div>
 
-      <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (Max 4MB)</button>
-    </aside>
+      <button id="clearBtn" class="main-btn btn-danger" style="margin-top: 10px; margin-bottom: 10px;">🗑 Hapus Foto</button>
 
+      <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (Max 4MB)</button>
     <section class="canvas-wrap" id="canvasContainer">
       <canvas id="canvas"></canvas>
     </section>
@@ -297,10 +297,10 @@
     
     <div class="camera-controls">
       <button id="closeCamBtn" class="cam-action-btn" title="Tutup">❌</button>
+      <button id="rotateCamBtn" class="cam-action-btn" title="Putar Kamera">⤵️</button>
       <button id="shutterBtn" class="shutter-btn" title="Ambil Foto"></button>
       <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
     </div>
-  </div>
 
   <script>
     // --- ELEMENTS ---
@@ -322,6 +322,7 @@
     
     const resetViewBtn = document.getElementById('resetView');
     const toggleCropBtn = document.getElementById('toggleCrop');
+    const clearBtn = document.getElementById('clearBtn');
     const downloadFinalBtn = document.getElementById('downloadFinal');
     const canvasContainer = document.getElementById('canvasContainer');
     const canvas = document.getElementById('canvas');
@@ -572,7 +573,31 @@
         draw();
       }
     });
+// --- FITUR HAPUS FOTO ---
+clearBtn.addEventListener('click', () => {
+  if (!imgLoaded) return; // Jika tidak ada foto, diam saja
 
+  // Tanya user dulu biar tidak terhapus tidak sengaja
+  if (confirm('Yakin ingin menghapus foto dari canvas?')) {
+      // 1. Reset Objek Gambar
+      img = new Image();
+      imgLoaded = false;
+      isNewFile = false;
+
+      // 2. Reset Input File (agar bisa pilih file yang sama lagi jika mau)
+      fileInput.value = ''; 
+
+      // 3. Matikan Mode Potong jika aktif
+      cropMode = false; 
+      cropRect = null;
+      toggleCropBtn.textContent = '✂ Potong';
+      toggleCropBtn.classList.remove('btn-danger');
+      toggleCropBtn.classList.add('btn-secondary');
+
+      // 4. Gambar ulang (Canvas akan kembali hitam bertuliskan "Pilih Foto Dulu")
+      draw(); 
+  }
+});
     toggleCropBtn.addEventListener('click', () => {
       if (cropMode) {
         if (cropRect && cropRect.w > 50 && cropRect.h > 50) applyCrop();
@@ -708,7 +733,7 @@
     }
     
     draw();
-	// --- FITUR KAMERA LANJUTAN (DIPERBAIKI) ---
+	// --- FITUR KAMERA LANJUTAN (FINAL FIX) ---
     
     const openCameraBtn = document.getElementById('openCameraBtn');
     const cameraModal = document.getElementById('cameraModal');
@@ -716,29 +741,28 @@
     const closeCamBtn = document.getElementById('closeCamBtn');
     const shutterBtn = document.getElementById('shutterBtn');
     const switchCamBtn = document.getElementById('switchCamBtn');
+    // Tombol baru
+    const rotateCamBtn = document.getElementById('rotateCamBtn');
 
     let currentStream = null;
-    let facingMode = 'environment'; // Default: kamera belakang
+    let facingMode = 'environment'; 
+    let currentRotation = 0; // Menyimpan sudut putaran (0, 90, 180, 270)
 
     // 1. Buka Kamera
     openCameraBtn.addEventListener('click', async () => {
-        // Cek support browser
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Browser tidak mendukung akses kamera. Pastikan menggunakan HTTPS.");
-            return;
+            alert("Browser tidak mendukung akses kamera."); return;
         }
         await startCamera();
     });
 
     async function startCamera() {
         if (currentStream) stopCamera();
+        currentRotation = 0; // Reset putaran saat buka baru
+        updateVideoStyle();
 
         const constraints = {
-            video: {
-                facingMode: facingMode,
-                width: { ideal: 4096 },
-                height: { ideal: 2160 }
-            },
+            video: { facingMode: facingMode, width: { ideal: 4096 }, height: { ideal: 2160 } },
             audio: false
         };
 
@@ -746,22 +770,12 @@
             currentStream = await navigator.mediaDevices.getUserMedia(constraints);
             cameraVideo.srcObject = currentStream;
             cameraModal.style.display = 'flex';
-            
-            // Terapkan efek cermin visual JIKA kamera depan
-            if (facingMode === 'user') {
-                cameraVideo.classList.add('selfie-mirror');
-            } else {
-                cameraVideo.classList.remove('selfie-mirror');
-            }
-
         } catch (err) {
-            console.error(err);
             alert("Gagal akses kamera: " + err.message);
             cameraModal.style.display = 'none';
         }
     }
 
-    // 2. Tutup Kamera
     function stopCamera() {
         if (currentStream) {
             currentStream.getTracks().forEach(track => track.stop());
@@ -770,85 +784,87 @@
         cameraVideo.srcObject = null;
     }
 
-    closeCamBtn.addEventListener('click', () => {
-        stopCamera();
-        cameraModal.style.display = 'none';
-    });
+    closeCamBtn.addEventListener('click', () => { stopCamera(); cameraModal.style.display = 'none'; });
 
-    // 3. Ganti Kamera
+    // 2. Ganti Kamera (Depan/Belakang)
     switchCamBtn.addEventListener('click', () => {
         facingMode = (facingMode === 'environment') ? 'user' : 'environment';
         startCamera();
     });
 
-    // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Mirror
-    // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Rotasi & Mirror Landscape
-   // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Rotasi & Mirror Landscape
-    // 4. Ambil Foto (Shutter) dengan Perbaikan Logika Rotasi & Mirror Landscape
+    // 3. FITUR BARU: Tombol Putar Manual
+    rotateCamBtn.addEventListener('click', () => {
+        currentRotation = (currentRotation + 90) % 360;
+        updateVideoStyle();
+    });
+
+    // Fungsi visual agar user melihat hasil putaran di layar HP
+    function updateVideoStyle() {
+        // Logika CSS transform
+        let transform = `rotate(${currentRotation}deg)`;
+        if (facingMode === 'user') {
+            // Jika kamera depan, kita perlu mirror, tapi hati-hati dengan urutan transform
+            // Logic: Rotate dulu, baru Scale. 
+            // Note: Pada CSS, jika rotate 90deg, axis X/Y berubah. 
+            // Kita pakai urutan standar: scale dulu (mirror) baru rotate.
+            transform = `rotate(${currentRotation}deg) scaleX(-1)`;
+        }
+        cameraVideo.style.transform = transform;
+        
+        // Sesuaikan ukuran agar tidak gepeng saat diputar 90/270 derajat
+        if (currentRotation % 180 !== 0) {
+             // Jika miring (90 atau 270), object-fit contain agar masuk layar
+             cameraVideo.style.objectFit = "contain";
+        } else {
+             cameraVideo.style.objectFit = "cover";
+        }
+    }
+
+    // 4. Ambil Foto (Shutter) - Sesuai Tampilan Layar
     shutterBtn.addEventListener('click', () => {
         if (!currentStream) return;
-
-        // Siapkan canvas sementara
+        const vW = cameraVideo.videoWidth;
+        const vH = cameraVideo.videoHeight;
+        
         const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        // Ambil dimensi asli stream video
-        const vWidth = cameraVideo.videoWidth;
-        const vHeight = cameraVideo.videoHeight;
+        const ctx = tempCanvas.getContext('2d');
 
-        // --- DETEKSI ORIENTASI ---
-        // Cek apakah layar user Landscape (Lebar > Tinggi)
-        const isLandscapeScreen = window.innerWidth > window.innerHeight;
-        // Cek apakah stream kamera masih Portrait (Tinggi > Lebar) - umum di HP
-        const isPortraitStream = vWidth < vHeight;
-        
-        // Jika layar Landscape tapi stream Portrait, berarti perlu diputar
-        const needRotation = isLandscapeScreen && isPortraitStream;
-
-        // Atur ukuran Canvas Hasil
-        if (needRotation) {
-            // Tukar dimensi jika perlu rotasi
-            tempCanvas.width = vHeight;
-            tempCanvas.height = vWidth;
+        // Tentukan ukuran Canvas Akhir
+        // Jika diputar 90/270, Lebar & Tinggi canvas harus ditukar
+        if (currentRotation % 180 !== 0) {
+            tempCanvas.width = vH;
+            tempCanvas.height = vW;
         } else {
-            tempCanvas.width = vWidth;
-            tempCanvas.height = vHeight;
+            tempCanvas.width = vW;
+            tempCanvas.height = vH;
         }
 
-        // --- TRANSFORMASI GEOMETRI ---
-        // Pindahkan titik origin ke tengah canvas untuk memudahkan rotasi/mirror
-        tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+        // Pindahkan titik pusat ke tengah canvas untuk mempermudah rotasi
+        ctx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
 
-        // 1. ROTASI (Jika perlu)
-        if (needRotation) {
-            // Putar -90 derajat (umumnya HP landscape butuh ini)
-            tempCtx.rotate(-90 * Math.PI / 180);
-        }
+        // 1. Putar Canvas sesuai tombol yang ditekan user
+        ctx.rotate(currentRotation * Math.PI / 180);
 
-        // 2. MIRROR (Khusus Kamera Depan)
+        // 2. Efek Cermin (Mirror) khusus Selfie
         if (facingMode === 'user') {
-            // Flip Horizontal (Mirroring)
-            // Dilakukan setelah rotasi agar axis-nya mengikuti gambar yang sudah tegak
-            tempCtx.scale(-1, 1);
+            ctx.scale(-1, 1);
         }
 
-        // --- GAMBAR VIDEO ---
-        // Gambar video dengan offset negatif setengah ukuran aslinya (karena origin ada di tengah)
-        tempCtx.drawImage(cameraVideo, -vWidth / 2, -vHeight / 2, vWidth, vHeight);
+        // 3. Gambar Video
+        // Karena titik pusat (0,0) sudah di tengah, kita gambar offset negatif setengah ukuran
+        ctx.drawImage(cameraVideo, -vW / 2, -vH / 2, vW, vH);
 
-        // Masukkan hasil ke aplikasi utama
+        // Simpan Hasil
         isNewFile = true;
         img.src = tempCanvas.toDataURL('image/jpeg', 1.0);
-
-        // Tutup kamera
         stopCamera();
         cameraModal.style.display = 'none';
         
-        // Update waktu
+        // Update Waktu
         const nowClick = new Date();
-        const localIsoClick = new Date(nowClick.getTime() - (nowClick.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-        dtInput.value = localIsoClick;
+        dtInput.value = new Date(nowClick - (nowClick.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     });
+    
   </script>
 </body>
 
