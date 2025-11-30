@@ -42,7 +42,7 @@
       font-weight: 700; /* Wajib tebal (Bold) agar pendaran neon terlihat jelas */
       font-size: 24px;  /* Sedikit disesuaikan agar proporsional */
       color: #e0f2fe;   
-      letter-spacing: 2px; /* Jarak antar huruf diperlebar agar terlihat mewah */
+      letter-spacing: 1.5px; /* Jarak antar huruf diperlebar agar terlihat mewah */
       text-transform: capitalize;
       
       /* Racikan Bayangan Neon Biru (Cyan) */
@@ -281,9 +281,10 @@
         </div>
       </div>
 
-      <div class="action-grid">
-        <button id="resetView" class="main-btn btn-secondary">↺ Reset</button>
-        <button id="toggleCrop" class="main-btn btn-secondary">✂ Potong</button>
+      <div class="action-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <button id="resetView" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">↺ Reset</button>
+        <button id="rotateBtn" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">⤵ Putar</button>
+        <button id="toggleCrop" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">✂ Potong</button>
       </div>
 
       <button id="clearBtn" class="main-btn btn-danger" style="margin-top: 10px; margin-bottom: 10px;">🗑 Hapus Foto</button>
@@ -324,6 +325,7 @@
     const resetViewBtn = document.getElementById('resetView');
     const toggleCropBtn = document.getElementById('toggleCrop');
     const clearBtn = document.getElementById('clearBtn');
+    const rotateBtn = document.getElementById('rotateBtn');
     const downloadFinalBtn = document.getElementById('downloadFinal');
     const canvasContainer = document.getElementById('canvasContainer');
     const canvas = document.getElementById('canvas');
@@ -669,6 +671,45 @@
     
     draw();
 
+    // --- FITUR ROTASI FOTO (EDITOR) ---
+rotateBtn.addEventListener('click', () => {
+    if(!imgLoaded) return; // Cek ada foto atau tidak
+
+    // 1. Matikan Crop Mode dulu (PENTING: agar koordinat tidak error)
+    if (cropMode) {
+        cropMode = false;
+        cropRect = null;
+        toggleCropBtn.textContent = '✂ Potong';
+        toggleCropBtn.classList.remove('btn-danger');
+        toggleCropBtn.classList.add('btn-secondary');
+    }
+
+    // 2. Buat Canvas Sementara untuk memutar
+    const tempC = document.createElement('canvas');
+    const ctxT = tempC.getContext('2d');
+
+    // Ambil ukuran asli gambar
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+
+    // 3. Tukar Dimensi (Lebar jadi Tinggi, Tinggi jadi Lebar)
+    tempC.width = h;
+    tempC.height = w;
+
+    // 4. Proses Rotasi 90 Derajat (Searah Jarum Jam)
+    ctxT.translate(tempC.width / 2, tempC.height / 2); // Pindah titik pusat ke tengah
+    ctxT.rotate(90 * Math.PI / 180); // Putar
+    ctxT.drawImage(img, -w / 2, -h / 2); // Gambar ulang
+
+    // 5. Simpan hasilnya kembali ke variabel 'img' utama
+    // Ini otomatis akan memicu fungsi img.onload -> setupHighResCanvas -> draw
+    img.src = tempC.toDataURL('image/jpeg', 1.0);
+
+    // Sedikit delay untuk animasi visual (opsional)
+    rotateBtn.textContent = '⏳';
+    setTimeout(() => rotateBtn.textContent = '⤵ Putar', 300);
+});
+
     // --- FITUR KAMERA LANJUTAN (FINAL FIX) ---
     const openCameraBtn = document.getElementById('openCameraBtn');
     const cameraModal = document.getElementById('cameraModal');
@@ -777,6 +818,7 @@
   </script>
 </body>
 </html>
+
 
 
 
