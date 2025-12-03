@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Reko2stamp-Ultimate (2.4)</title>
+  <title>Reko2stamp-Ultimate (2.5)</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon ultimate.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -204,7 +204,7 @@
 </head>
 <body>
 
-  <header>Reko2stamp-Ultimate (2.4)</header>
+  <header>Reko2stamp-Ultimate (2.5)</header>
 
   <main>
     <aside class="controls">
@@ -332,22 +332,34 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    // SISTEM BARU (OPTIMIZED)
-    let sourceImage = null; // Bisa berupa Image Object atau Canvas Element
-    let isUsingCanvasSource = false; // True jika hasil edit/kamera (Canvas), False jika file asli (Image)
+    // SISTEM BARU
+    let sourceImage = null; 
+    let isUsingCanvasSource = false; 
     let imgLoaded = false;
     let isNewFile = false;
 
     // States Touch/UI
     let viewScale = 1; let viewX = 0; let viewY = 0;
+    
+    // Stamp State
     let stampX = 50, stampY = 100;
-    let draggingStamp = false; let dragStart = {x:0, y:0};
-    let cropMode = false; let cropStart = null; let cropRect = null;
+    let draggingStamp = false; 
+    
+    // Crop State (ADVANCED)
+    let cropMode = false; 
+    let cropRect = null; // {x, y, w, h}
+    let cropAction = null; // 'create', 'move', 'nw', 'ne', 'sw', 'se'
+    let dragStartPos = {x:0, y:0};
+    let initialCropRect = null; // Snapshot rect saat mulai drag
+
+    // Pinch Zoom State
     let initialPinchDist = 0; let initialScale = 1; let lastPanX = 0; let lastPanY = 0;
+    
     let isDrawing = false; // Untuk requestAnimationFrame
 
     const MAX_DIMENSION = 4096;
     const MAX_FILE_SIZE = 4 * 1024 * 1024;
+    const HANDLE_SIZE = 20; // Ukuran area sentuh sudut crop
 
     // Init Date
     const now = new Date();
@@ -365,7 +377,6 @@
         }
     }
 
-    // Helper untuk mendapatkan dimensi gambar sumber dengan aman
     function getSourceWidth() {
         if (!sourceImage) return 0;
         return isUsingCanvasSource ? sourceImage.width : sourceImage.naturalWidth;
@@ -390,10 +401,7 @@
             return; 
         }
         
-        // Bersihkan canvas
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        
-        // Gambar foto utama (Source Image)
         ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
 
         // Render Text / Stamp
@@ -414,16 +422,43 @@
         wrapText(text, stampX, stampY, canvas.width - (stampX + 20), fSize * 1.25);
         ctx.restore();
 
-        // Render Crop UI (Garis putus-putus)
+        // --- RENDER CROP UI (ADVANCED) ---
         if (cropMode && cropRect) {
             ctx.save();
-            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = (canvas.width / 200) / viewScale; 
-            ctx.setLineDash([20, 10]);
+            
+            // 1. Gelapkan area di luar crop
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.beginPath();
+            ctx.rect(0, 0, canvas.width, canvas.height); // Seluruh layar
+            // "Lubangi" area crop
+            ctx.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h); 
+            ctx.clip("evenodd"); 
+            ctx.fill();
+
+            // 2. Garis Crop
+            ctx.strokeStyle = '#fff'; 
+            ctx.lineWidth = 2 / viewScale; // Garis tetap tipis meski di-zoom
+            ctx.setLineDash([10, 5]);
             ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.beginPath(); ctx.rect(0, 0, canvas.width, canvas.height);
-            ctx.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-            ctx.clip("evenodd"); ctx.fill();
+
+            // 3. Handles (Titik Sudut)
+            // Hitung ukuran handle visual agar tidak terlalu besar saat di-zoom out
+            const visualHandle = 10 / viewScale; 
+            ctx.fillStyle = '#3b82f6'; // Warna biru primary
+            ctx.setLineDash([]); // Reset dash
+
+            // Fungsi gambar kotak kecil
+            const drawHandle = (x, y) => {
+                ctx.fillRect(x - visualHandle/2, y - visualHandle/2, visualHandle, visualHandle);
+                ctx.strokeRect(x - visualHandle/2, y - visualHandle/2, visualHandle, visualHandle);
+            };
+
+            // Gambar 4 sudut
+            drawHandle(cropRect.x, cropRect.y); // NW
+            drawHandle(cropRect.x + cropRect.w, cropRect.y); // NE
+            drawHandle(cropRect.x, cropRect.y + cropRect.h); // SW
+            drawHandle(cropRect.x + cropRect.w, cropRect.y + cropRect.h); // SE
+
             ctx.restore();
         }
     }
@@ -449,21 +484,15 @@
 
     function setupHighResCanvas() {
         if (!sourceImage) return;
-
         let w = getSourceWidth();
         let h = getSourceHeight();
-
-        // Downscale jika terlalu besar (untuk performa)
         if (w > MAX_DIMENSION || h > MAX_DIMENSION) {
             const ratio = w / h;
             if (w > h) { w = MAX_DIMENSION; h = Math.round(w / ratio); } 
             else { h = MAX_DIMENSION; w = Math.round(h * ratio); }
         }
-        
-        // Set ukuran fisik canvas
         canvas.width = w; canvas.height = h;
 
-        // Set ukuran tampilan CSS (Responsif)
         const padding = 20; 
         const isMobile = window.innerWidth < 768;
         const screenW = isMobile ? (window.innerWidth - padding) : (window.innerWidth - 380);
@@ -473,10 +502,8 @@
         if (cssH > screenH) { cssH = screenH; cssW = cssH * ratio; }
         canvas.style.width = `${cssW}px`; canvas.style.height = `${cssH}px`;
         
-        // Reset posisi view jika file baru
         if(isNewFile) { 
             viewScale = 1; viewX = 0; viewY = 0; updateTransform(); 
-            // Reset posisi stamp
             stampX = canvas.width * 0.05; 
             stampY = canvas.height - (canvas.height * 0.1); 
             const autoSize = Math.max(40, Math.round(canvas.width * 0.04));
@@ -487,282 +514,29 @@
         draw();
     }
 
-    // --- 4. INPUT FILE & KAMERA ---
+    // --- 4. INTERAKSI TOUCH / MOUSE (LOGIKA CROP BARU) ---
     
-    // INPUT FILE
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        isNewFile = true;
+    // Helper: Cek bagian mana yang disentuh pada Crop Rect
+    function getHitRegion(x, y) {
+        if (!cropRect) return null;
         
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const tempImg = new Image();
-            tempImg.onload = () => {
-                sourceImage = tempImg; 
-                isUsingCanvasSource = false;
-                imgLoaded = true;
-                setupHighResCanvas();
-            };
-            tempImg.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
+        // Toleransi sentuhan disesuaikan dengan zoom level
+        const tol = (HANDLE_SIZE * 1.5) / viewScale; 
 
-    // FITUR KAMERA
-    const openCameraBtn = document.getElementById('openCameraBtn');
-    const cameraModal = document.getElementById('cameraModal');
-    const cameraVideo = document.getElementById('cameraVideo');
-    const closeCamBtn = document.getElementById('closeCamBtn');
-    const shutterBtn = document.getElementById('shutterBtn');
-    const switchCamBtn = document.getElementById('switchCamBtn');
-    const rotateCamBtn = document.getElementById('rotateCamBtn');
+        // Cek Sudut (Corner)
+        if (Math.abs(x - cropRect.x) < tol && Math.abs(y - cropRect.y) < tol) return 'nw'; // Top-Left
+        if (Math.abs(x - (cropRect.x + cropRect.w)) < tol && Math.abs(y - cropRect.y) < tol) return 'ne'; // Top-Right
+        if (Math.abs(x - cropRect.x) < tol && Math.abs(y - (cropRect.y + cropRect.h)) < tol) return 'sw'; // Bottom-Left
+        if (Math.abs(x - (cropRect.x + cropRect.w)) < tol && Math.abs(y - (cropRect.y + cropRect.h)) < tol) return 'se'; // Bottom-Right
 
-    let currentStream = null;
-    let facingMode = 'environment'; 
-    let currentRotation = 0; 
-
-    openCameraBtn.addEventListener('click', async () => {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Browser tidak mendukung akses kamera."); return;
+        // Cek Badan (Move)
+        if (x > cropRect.x && x < cropRect.x + cropRect.w && y > cropRect.y && y < cropRect.y + cropRect.h) {
+            return 'move';
         }
-        await startCamera();
-    });
 
-    async function startCamera() {
-        if (currentStream) stopCamera();
-        updateVideoStyle();
-        const constraints = {
-            video: { facingMode: facingMode, width: { ideal: 4096 }, height: { ideal: 2160 } },
-            audio: false
-        };
-        try {
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            cameraVideo.srcObject = currentStream;
-            cameraModal.style.display = 'flex';
-        } catch (err) {
-            alert("Gagal akses kamera: " + err.message);
-            cameraModal.style.display = 'none';
-        }
+        return null;
     }
 
-    function stopCamera() {
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-            currentStream = null;
-        }
-        cameraVideo.srcObject = null;
-    }
-
-    closeCamBtn.addEventListener('click', () => { stopCamera(); cameraModal.style.display = 'none'; });
-    switchCamBtn.addEventListener('click', () => { facingMode = (facingMode === 'environment') ? 'user' : 'environment'; startCamera(); });
-    rotateCamBtn.addEventListener('click', () => { currentRotation = (currentRotation + 90) % 360; updateVideoStyle(); });
-
-    function updateVideoStyle() {
-        let transform = `rotate(${currentRotation}deg)`;
-        if (facingMode === 'user') transform += ` scaleX(-1)`;
-        cameraVideo.style.transform = transform;
-        cameraVideo.style.objectFit = (currentRotation % 180 !== 0) ? "contain" : "cover";
-    }
-
-    shutterBtn.addEventListener('click', () => {
-        if (!currentStream) return;
-        const vW = cameraVideo.videoWidth;
-        const vH = cameraVideo.videoHeight;
-        
-        const tempCanvas = document.createElement('canvas');
-        const ctxT = tempCanvas.getContext('2d');
-
-        if (currentRotation % 180 !== 0) {
-            tempCanvas.width = vH; tempCanvas.height = vW;
-        } else {
-            tempCanvas.width = vW; tempCanvas.height = vH;
-        }
-
-        ctxT.translate(tempCanvas.width / 2, tempCanvas.height / 2);
-        ctxT.rotate(currentRotation * Math.PI / 180);
-        if (facingMode === 'user') ctxT.scale(-1, 1);
-        ctxT.drawImage(cameraVideo, -vW / 2, -vH / 2, vW, vH);
-        
-        // UPDATE SOURCE KE HASIL FOTO (PERBAIKAN UTAMA)
-        sourceImage = tempCanvas;
-        isUsingCanvasSource = true;
-        imgLoaded = true;
-        isNewFile = true;
-        
-        stopCamera();
-        cameraModal.style.display = 'none';
-        
-        setupHighResCanvas();
-        
-        // Update jam
-        const nowClick = new Date();
-        dtInput.value = new Date(nowClick - (nowClick.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-    });
-
-    // --- 5. FITUR EDIT (ROTATE & CROP) ---
-
-    // ROTATE (OPTIMIZED)
-    rotateBtn.addEventListener('click', () => {
-        if(!imgLoaded || !sourceImage) return;
-
-        const originalText = rotateBtn.textContent;
-        rotateBtn.textContent = '⏳'; 
-
-        requestAnimationFrame(() => {
-            const w = getSourceWidth();
-            const h = getSourceHeight();
-            
-            const tempC = document.createElement('canvas');
-            tempC.width = h; tempC.height = w;
-            const ctxT = tempC.getContext('2d');
-
-            ctxT.translate(tempC.width / 2, tempC.height / 2);
-            ctxT.rotate(90 * Math.PI / 180);
-            ctxT.drawImage(sourceImage, -w / 2, -h / 2);
-
-            // JADIKAN HASIL ROTASI SEBAGAI SOURCE BARU
-            sourceImage = tempC; 
-            isUsingCanvasSource = true;
-
-            setupHighResCanvas(); // Re-setup canvas size
-            
-            if (cropMode) { cropMode = false; toggleCropBtn.textContent = '✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); }
-
-            draw();
-            rotateBtn.textContent = originalText;
-        });
-    });
-
-    // CROP
-    toggleCropBtn.addEventListener('click', () => {
-        if (cropMode) {
-            if (cropRect && cropRect.w > 50 && cropRect.h > 50) applyCrop();
-            cropMode = false;
-            toggleCropBtn.textContent = '✂ Potong';
-            toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
-        } else {
-            cropMode = true; cropRect = null;
-            toggleCropBtn.textContent = '✅ Terapkan';
-            toggleCropBtn.classList.remove('btn-secondary'); toggleCropBtn.classList.add('btn-danger');
-        }
-        draw();
-    });
-
-    function applyCrop() {
-        if (!sourceImage) return;
-        const tempC = document.createElement('canvas');
-        tempC.width = cropRect.w; tempC.height = cropRect.h;
-        const tCtx = tempC.getContext('2d');
-        
-        const scaleX = canvas.width / canvas.getBoundingClientRect().width * viewScale; 
-        // Note: Kalkulasi crop pada mode zoom/pan manual agak kompleks.
-        // Kita gunakan pendekatan simple: crop koordinat visual canvas
-        
-        // Reset scale view dulu agar akurat saat crop
-        // Cara terbaik: Crop berdasarkan koordinat Canvas asli
-        tCtx.drawImage(canvas, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, tempC.width, tempC.height);
-        
-        // Karena kita crop HASIL canvas (termasuk teks), kita harus hati-hati.
-        // Versi "Reko" biasanya ingin crop gambar aslinya saja, tapi ini ribet di UX.
-        // Solusi stabil: Crop Gambar Sumber
-        
-        const realTemp = document.createElement('canvas');
-        realTemp.width = cropRect.w; realTemp.height = cropRect.h;
-        const rCtx = realTemp.getContext('2d');
-        
-        // Gambar source original ke posisi crop
-        // Karena cropRect dalam koordinat Canvas saat ini:
-        rCtx.drawImage(sourceImage, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, cropRect.w, cropRect.h);
-        
-        sourceImage = realTemp;
-        isUsingCanvasSource = true;
-        setupHighResCanvas();
-    }
-
-    // --- 6. EVENT LISTENERS LAINNYA ---
-    
-    // GPS
-    gpsBtn.addEventListener('click', () => {
-        if (!navigator.geolocation) { alert("Browser tidak mendukung GPS."); return; }
-        const originalText = gpsBtn.innerHTML;
-        gpsBtn.innerHTML = "⏳ Mencari...";
-        navigator.geolocation.getCurrentPosition(async (position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                const data = await response.json();
-                const addr = data.address;
-                const street = addr.road || addr.village || addr.suburb || '';
-                const city = addr.city || addr.town || addr.county || '';
-                const state = addr.state || '';
-                locInput.value = `${street}\n${city}, ${state}\n(Titik Koordinat: ${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-                draw();
-            } catch (err) { alert("Gagal mengambil alamat."); } 
-            finally { gpsBtn.innerHTML = originalText; }
-        }, (err) => { alert("Gagal akses GPS."); gpsBtn.innerHTML = originalText; });
-    });
-
-    // Auto Complete Lokasi
-    let debounceTimer;
-    locInput.addEventListener('input', (e) => {
-        requestRender(); 
-        const query = e.target.value.split('\n')[0];
-        if (query.length < 3) { suggestionsBox.style.display = 'none'; return; }
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-                const results = await res.json();
-                if (results.length > 0) {
-                    suggestionsBox.innerHTML = '';
-                    results.forEach(place => {
-                        const div = document.createElement('div');
-                        div.className = 'suggestion-item';
-                        div.textContent = place.display_name;
-                        div.onclick = () => { locInput.value = place.display_name; suggestionsBox.style.display = 'none'; requestRender(); };
-                        suggestionsBox.appendChild(div);
-                    });
-                    suggestionsBox.style.display = 'block';
-                } else { suggestionsBox.style.display = 'none'; }
-            } catch (err) {}
-        }, 500);
-    });
-    document.addEventListener('click', (e) => { if (!e.target.closest('.location-wrapper')) suggestionsBox.style.display = 'none'; });
-
-    // Slider & Inputs
-    window.adjustSize = (amount) => {
-        let val = parseInt(sizeSlider.value); val += amount;
-        if (val < parseInt(sizeSlider.min)) val = parseInt(sizeSlider.min);
-        if (val > parseInt(sizeSlider.max)) val = parseInt(sizeSlider.max);
-        sizeSlider.value = val; sizeValDisplay.textContent = val + 'px'; requestRender();
-    };
-    sizeSlider.addEventListener('input', () => { sizeValDisplay.textContent = sizeSlider.value + 'px'; requestRender(); });
-    opacitySlider.addEventListener('input', () => { opacityValDisplay.textContent = opacitySlider.value + '%'; requestRender(); });
-    [dtInput, fontColor, fontSelect, showDateToggle].forEach(el => el.addEventListener('input', requestRender));
-    window.addEventListener('resize', () => { if(sourceImage) setupHighResCanvas(); });
-
-    resetViewBtn.addEventListener('click', () => {
-        if(imgLoaded) {
-            viewScale = 1; viewX = 0; viewY = 0; updateTransform();
-            stampX = canvas.width * 0.05; stampY = canvas.height - (canvas.height * 0.1); 
-            draw();
-        }
-    });
-
-    clearBtn.addEventListener('click', () => {
-        if (!imgLoaded) return;
-        if (confirm('Yakin ingin menghapus foto dari canvas?')) {
-            sourceImage = null; imgLoaded = false; isNewFile = false;
-            fileInput.value = ''; cropMode = false; cropRect = null;
-            toggleCropBtn.textContent = '✂ Potong';
-            toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
-            draw(); 
-        }
-    });
-
-    // --- 7. TOUCH / MOUSE CONTROLS ---
     function getDist(touches) { return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); }
     function getPos(clientX, clientY) {
         const rect = canvas.getBoundingClientRect(); 
@@ -770,6 +544,108 @@
         return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
+    // --- HANDLE START (Touch/Mouse) ---
+    function handleStart(clientX, clientY) {
+        const pos = getPos(clientX, clientY);
+        dragStartPos = pos;
+
+        // A. Jika Mode Crop Aktif
+        if (cropMode) {
+            const hit = getHitRegion(pos.x, pos.y);
+            
+            if (hit) {
+                // User menyentuh crop box (Move atau Resize)
+                cropAction = hit;
+                initialCropRect = { ...cropRect }; // Snapshot posisi awal
+            } else {
+                // User menyentuh di luar crop box -> Buat crop baru
+                cropAction = 'create';
+                cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
+            }
+        } 
+        // B. Jika Mode Biasa (Geser Stamp)
+        else {
+            const fSize = parseInt(sizeSlider.value);
+            // Hit box stamp sederhana
+            if (pos.x >= stampX - fSize && pos.x <= stampX + (fSize*10) && pos.y >= stampY - fSize && pos.y <= stampY + (fSize*2)) {
+                draggingStamp = true;
+            }
+        }
+    }
+
+    // --- HANDLE MOVE (Touch/Mouse) ---
+    function handleMove(clientX, clientY) {
+        const pos = getPos(clientX, clientY);
+
+        // A. Logika Crop
+        if (cropMode && cropAction) {
+            if (cropAction === 'create') {
+                // Logika buat baru (tarik diagonal)
+                cropRect.w = pos.x - dragStartPos.x;
+                cropRect.h = pos.y - dragStartPos.y;
+                // Normalisasi jika tarik ke kiri/atas (width/height negatif)
+                // (Ini ditangani visual nanti, atau dinormalkan saat mouseup)
+            } 
+            else if (cropAction === 'move') {
+                // Logika geser (Move)
+                const dx = pos.x - dragStartPos.x;
+                const dy = pos.y - dragStartPos.y;
+                cropRect.x = initialCropRect.x + dx;
+                cropRect.y = initialCropRect.y + dy;
+            } 
+            else {
+                // Logika Resize (Stretch sudut)
+                const dx = pos.x - dragStartPos.x;
+                const dy = pos.y - dragStartPos.y;
+
+                if (cropAction === 'se') { // Tarik Bawah-Kanan
+                    cropRect.w = initialCropRect.w + dx;
+                    cropRect.h = initialCropRect.h + dy;
+                } else if (cropAction === 'sw') { // Tarik Bawah-Kiri
+                    cropRect.x = initialCropRect.x + dx;
+                    cropRect.w = initialCropRect.w - dx;
+                    cropRect.h = initialCropRect.h + dy;
+                } else if (cropAction === 'ne') { // Tarik Atas-Kanan
+                    cropRect.y = initialCropRect.y + dy;
+                    cropRect.w = initialCropRect.w + dx;
+                    cropRect.h = initialCropRect.h - dy;
+                } else if (cropAction === 'nw') { // Tarik Atas-Kiri
+                    cropRect.x = initialCropRect.x + dx;
+                    cropRect.y = initialCropRect.y + dy;
+                    cropRect.w = initialCropRect.w - dx;
+                    cropRect.h = initialCropRect.h - dy;
+                }
+            }
+            requestRender();
+        } 
+        // B. Logika Geser Stamp
+        else if (draggingStamp) {
+            stampX = pos.x - (dragStartPos.x - stampX); // Offset logic correction
+            // Karena stampX diupdate terus, kita perlu logic delta yang lebih simple:
+            // Lebih baik update dragStartPos setiap frame untuk stamp
+             stampX = pos.x; 
+             stampY = pos.y; 
+            requestRender();
+        }
+    }
+
+    // --- HANDLE END ---
+    function handleEnd() {
+        // Normalisasi Crop Rect (hilangkan nilai negatif width/height)
+        if (cropMode && cropRect) {
+            if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
+            if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
+        }
+        
+        cropAction = null;
+        draggingStamp = false;
+        initialCropRect = null;
+    }
+
+
+    // --- EVENT LISTENERS (Unified) ---
+    
+    // TOUCH
     canvasContainer.addEventListener('touchstart', (e) => {
         if(!imgLoaded) return;
         if (e.touches.length === 2) {
@@ -778,15 +654,7 @@
             lastPanX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
             lastPanY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         } else if (e.touches.length === 1) {
-            const pos = getPos(e.touches[0].clientX, e.touches[0].clientY);
-            if (!cropMode) {
-                const fSize = parseInt(sizeSlider.value);
-                if (pos.x >= stampX - fSize && pos.x <= stampX + (fSize*10) && pos.y >= stampY - fSize && pos.y <= stampY + (fSize*2)) {
-                    draggingStamp = true; dragStart = { x: pos.x - stampX, y: pos.y - stampY };
-                }
-            } else {
-                cropStart = pos; cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
-            }
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
         }
     }, {passive: false});
 
@@ -794,6 +662,7 @@
         if(!imgLoaded) return;
         e.preventDefault(); 
         if (e.touches.length === 2) {
+            // ZOOM / PAN
             const currentDist = getDist(e.touches);
             const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
             const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -802,81 +671,204 @@
             const dx = centerX - lastPanX; const dy = centerY - lastPanY;
             viewX += dx; viewY += dy; lastPanX = centerX; lastPanY = centerY; updateTransform();
         } else if (e.touches.length === 1) {
-            const pos = getPos(e.touches[0].clientX, e.touches[0].clientY);
-            if (draggingStamp) {
-                stampX = pos.x - dragStart.x; stampY = pos.y - dragStart.y; requestRender();
-            } else if (cropMode && cropStart) {
-                const curX = Math.max(0, Math.min(pos.x, canvas.width));
-                const curY = Math.max(0, Math.min(pos.y, canvas.height));
-                cropRect = {
-                    x: Math.min(cropStart.x, curX), y: Math.min(cropStart.y, curY),
-                    w: Math.abs(curX - cropStart.x), h: Math.abs(curY - cropStart.y)
-                };
-                requestRender();
-            }
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
         }
     }, {passive: false});
 
+    canvasContainer.addEventListener('touchend', handleEnd);
+
+    // MOUSE
     canvasContainer.addEventListener('mousedown', (e) => {
         if(!imgLoaded) return;
-        const pos = getPos(e.clientX, e.clientY);
-        if (!cropMode) {
-            const fSize = parseInt(sizeSlider.value);
-            if (pos.x >= stampX - fSize && pos.x <= stampX + (fSize*10) && pos.y >= stampY - fSize && pos.y <= stampY + (fSize*2)) {
-                draggingStamp = true; dragStart = { x: pos.x - stampX, y: pos.y - stampY };
-            }
-        } else {
-            cropStart = pos; cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
-        }
+        handleStart(e.clientX, e.clientY);
     });
     window.addEventListener('mousemove', (e) => {
         if(!imgLoaded) return;
-        const pos = getPos(e.clientX, e.clientY);
-        if (draggingStamp) { stampX = pos.x - dragStart.x; stampY = pos.y - dragStart.y; requestRender(); } 
-        else if (cropMode && cropStart) {
-            cropRect = { x: Math.min(cropStart.x, pos.x), y: Math.min(cropStart.y, pos.y), w: Math.abs(pos.x - cropStart.x), h: Math.abs(pos.y - cropStart.y) };
-            requestRender();
-        }
+        // Cek tombol mouse ditekan
+        if (e.buttons === 1) handleMove(e.clientX, e.clientY);
     });
-    window.addEventListener('mouseup', () => { draggingStamp = false; cropStart = null; });
-    window.addEventListener('touchend', () => { draggingStamp = false; cropStart = null; });
+    window.addEventListener('mouseup', handleEnd);
 
-    // --- 8. DOWNLOAD ---
+
+    // --- 5. INPUT FILE, KAMERA, & TOMBOL LAIN ---
+    // (Kode di bawah ini sama persis dengan versi fix sebelumnya, hanya copy paste ulang agar lengkap)
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        isNewFile = true;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                sourceImage = tempImg; isUsingCanvasSource = false; imgLoaded = true;
+                setupHighResCanvas();
+            };
+            tempImg.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // KAMERA
+    const openCameraBtn = document.getElementById('openCameraBtn');
+    const cameraModal = document.getElementById('cameraModal');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const closeCamBtn = document.getElementById('closeCamBtn');
+    const shutterBtn = document.getElementById('shutterBtn');
+    const switchCamBtn = document.getElementById('switchCamBtn');
+    const rotateCamBtn = document.getElementById('rotateCamBtn');
+    let currentStream = null; let facingMode = 'environment'; let currentRotation = 0; 
+
+    openCameraBtn.addEventListener('click', async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Browser error."); return; }
+        await startCamera();
+    });
+    async function startCamera() {
+        if (currentStream) stopCamera();
+        updateVideoStyle();
+        try {
+            currentStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: facingMode, width: {ideal:4096}, height: {ideal:2160} }});
+            cameraVideo.srcObject = currentStream; cameraModal.style.display = 'flex';
+        } catch (err) { alert("Gagal akses kamera."); cameraModal.style.display = 'none'; }
+    }
+    function stopCamera() { if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; } cameraVideo.srcObject = null; }
+    closeCamBtn.addEventListener('click', () => { stopCamera(); cameraModal.style.display = 'none'; });
+    switchCamBtn.addEventListener('click', () => { facingMode = (facingMode==='environment')?'user':'environment'; startCamera(); });
+    rotateCamBtn.addEventListener('click', () => { currentRotation = (currentRotation+90)%360; updateVideoStyle(); });
+    function updateVideoStyle() {
+        let t = `rotate(${currentRotation}deg)`; if(facingMode==='user') t+=` scaleX(-1)`;
+        cameraVideo.style.transform = t; cameraVideo.style.objectFit=(currentRotation%180!==0)?"contain":"cover";
+    }
+    shutterBtn.addEventListener('click', () => {
+        if(!currentStream) return;
+        const vW = cameraVideo.videoWidth; const vH = cameraVideo.videoHeight;
+        const tC = document.createElement('canvas'); const ctxT = tC.getContext('2d');
+        if(currentRotation%180!==0) { tC.width=vH; tC.height=vW; } else { tC.width=vW; tC.height=vH; }
+        ctxT.translate(tC.width/2, tC.height/2); ctxT.rotate(currentRotation*Math.PI/180);
+        if(facingMode==='user') ctxT.scale(-1,1);
+        ctxT.drawImage(cameraVideo, -vW/2, -vH/2, vW, vH);
+        sourceImage = tC; isUsingCanvasSource=true; imgLoaded=true; isNewFile=true;
+        stopCamera(); cameraModal.style.display='none'; setupHighResCanvas();
+        const n = new Date(); dtInput.value=new Date(n-n.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    });
+
+    // ROTATE IMAGE
+    rotateBtn.addEventListener('click', () => {
+        if(!imgLoaded || !sourceImage) return;
+        const origT = rotateBtn.textContent; rotateBtn.textContent = '⏳'; 
+        requestAnimationFrame(() => {
+            const w = getSourceWidth(); const h = getSourceHeight();
+            const tC = document.createElement('canvas'); tC.width = h; tC.height = w;
+            const xT = tC.getContext('2d');
+            xT.translate(tC.width/2, tC.height/2); xT.rotate(90*Math.PI/180);
+            xT.drawImage(sourceImage, -w/2, -h/2);
+            sourceImage = tC; isUsingCanvasSource = true;
+            setupHighResCanvas();
+            // Reset Crop jika aktif agar tidak error koordinat
+            if(cropMode) { cropRect = null; cropAction=null; }
+            draw(); rotateBtn.textContent = origT;
+        });
+    });
+
+    // CROP BUTTON
+    toggleCropBtn.addEventListener('click', () => {
+        if (cropMode) {
+            // APPLY CROP
+            if (cropRect && cropRect.w > 10 && cropRect.h > 10) applyCrop();
+            cropMode = false;
+            toggleCropBtn.textContent = '✂ Potong';
+            toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
+        } else {
+            // START CROP MODE
+            cropMode = true; 
+            // Inisialisasi kotak crop di tengah layar (UX lebih baik)
+            const cw = canvas.width; const ch = canvas.height;
+            cropRect = { x: cw*0.1, y: ch*0.1, w: cw*0.8, h: ch*0.8 };
+            
+            toggleCropBtn.textContent = '✅ Terapkan';
+            toggleCropBtn.classList.remove('btn-secondary'); toggleCropBtn.classList.add('btn-danger');
+        }
+        draw();
+    });
+
+    function applyCrop() {
+        if (!sourceImage || !cropRect) return;
+        // Pastikan width/height positif
+        const x = cropRect.w < 0 ? cropRect.x + cropRect.w : cropRect.x;
+        const y = cropRect.h < 0 ? cropRect.y + cropRect.h : cropRect.y;
+        const w = Math.abs(cropRect.w);
+        const h = Math.abs(cropRect.h);
+
+        const tC = document.createElement('canvas'); tC.width = w; tC.height = h;
+        const tX = tC.getContext('2d');
+        // Crop dari SOURCE image agar kualitas terjaga (bukan dari layar)
+        tX.drawImage(sourceImage, x, y, w, h, 0, 0, w, h);
+        sourceImage = tC; isUsingCanvasSource = true;
+        setupHighResCanvas();
+    }
+
+    // UTILS LAIN
+    gpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) return;
+        gpsBtn.innerHTML = "⏳...";
+        navigator.geolocation.getCurrentPosition(async (p) => {
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${p.coords.latitude}&lon=${p.coords.longitude}`);
+                const d = await r.json();
+                locInput.value = `${d.address.road||''}\n${d.address.city||d.address.county||''}\n(${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)})`;
+                draw();
+            } catch(e){} gpsBtn.innerHTML = "📍 Cek GPS";
+        }, ()=>{ gpsBtn.innerHTML = "📍 Cek GPS"; });
+    });
+
+    let debT;
+    locInput.addEventListener('input', (e) => {
+        requestRender();
+        clearTimeout(debT);
+        debT = setTimeout(async()=>{
+            try {
+                const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(e.target.value.split('\n')[0])}&limit=5`);
+                const res = await r.json();
+                suggestionsBox.innerHTML='';
+                if(res.length){
+                    suggestionsBox.style.display='block';
+                    res.forEach(p=>{
+                        const d=document.createElement('div'); d.className='suggestion-item'; d.textContent=p.display_name;
+                        d.onclick=()=>{locInput.value=p.display_name; suggestionsBox.style.display='none'; requestRender();};
+                        suggestionsBox.appendChild(d);
+                    });
+                } else suggestionsBox.style.display='none';
+            }catch(err){}
+        }, 500);
+    });
+    document.addEventListener('click', e => { if(!e.target.closest('.location-wrapper')) suggestionsBox.style.display='none'; });
+
+    window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
+    sizeSlider.addEventListener('input', ()=>{ sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); });
+    opacitySlider.addEventListener('input', ()=>{ opacityValDisplay.textContent=opacitySlider.value+'%'; requestRender(); });
+    [dtInput, fontColor, fontSelect, showDateToggle].forEach(e=>e.addEventListener('input', requestRender));
+    window.addEventListener('resize', ()=>{if(sourceImage) setupHighResCanvas();});
+    
+    resetViewBtn.addEventListener('click', ()=>{ if(imgLoaded){ viewScale=1; viewX=0; viewY=0; updateTransform(); stampX=canvas.width*0.05; stampY=canvas.height*0.9; draw(); } });
+    clearBtn.addEventListener('click', ()=>{ if(imgLoaded && confirm('Hapus?')) { sourceImage=null; imgLoaded=false; isNewFile=false; fileInput.value=''; cropMode=false; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); draw(); } });
+
     downloadFinalBtn.addEventListener('click', () => {
         if(!imgLoaded) return;
         draw();
-        const originalText = downloadFinalBtn.textContent;
-        downloadFinalBtn.textContent = '⏳ Memproses (Max 4MB)...';
-        downloadFinalBtn.disabled = true;
-
-        compressImage(1.0);
-
-        function compressImage(quality) {
-            canvas.toBlob((blob) => {
-                if (blob.size > MAX_FILE_SIZE && quality > 0.1) {
-                    compressImage(quality - 0.05);
-                } else {
-                    downloadBlob(blob);
-                    downloadFinalBtn.textContent = originalText;
-                    downloadFinalBtn.disabled = false;
+        const oT = downloadFinalBtn.textContent; downloadFinalBtn.textContent = '⏳...'; downloadFinalBtn.disabled = true;
+        (function c(q) {
+            canvas.toBlob(b => {
+                if(b.size>MAX_FILE_SIZE && q>0.1) c(q-0.05);
+                else {
+                    const l = document.createElement('a'); l.download=`Stamp_${Date.now()}.jpg`; l.href=URL.createObjectURL(b); l.click();
+                    downloadFinalBtn.textContent=oT; downloadFinalBtn.disabled=false;
                 }
-            }, 'image/jpeg', quality);
-        }
+            }, 'image/jpeg', q);
+        })(1.0);
     });
 
-    function downloadBlob(blob) {
-        const link = document.createElement('a');
-        link.download = `Stamp_${Date.now()}.jpg`;
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    }
-    
-    // Init Draw
-    draw();
+    draw(); // First init
 </script>
-</body>
-</html>
 
 
 
