@@ -308,6 +308,14 @@
     </div>
   </div>
   <script>
+    // --- PENDAFTARAN SERVICE WORKER (PWA) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker terdaftar!', reg.scope))
+                .catch(err => console.log('Gagal daftar Service Worker:', err));
+        });
+    }
     // --- 1. INISIALISASI VARIABEL GLOBAL ---
     const fileInput = document.getElementById('fileInput');
     const dtInput = document.getElementById('dtInput');
@@ -872,6 +880,7 @@
 
     draw(); 
 </script>
+
 
 
 
