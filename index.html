@@ -331,9 +331,8 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    let img = new Image();
-    let imgLoaded = false;
-    let isNewFile = false;
+    let sourceImage = null; // Bisa berupa Image Object atau Canvas Element
+let isUsingCanvasSource = false; // Penanda apakah sumbernya canvas hasil edit
 
     // States
     let viewScale = 1; let viewX = 0; let viewY = 0;
@@ -405,11 +404,31 @@
       if (val > parseInt(sizeSlider.max)) val = parseInt(sizeSlider.max);
       sizeSlider.value = val; sizeValDisplay.textContent = val + 'px'; draw();
     };
-    sizeSlider.addEventListener('input', () => { sizeValDisplay.textContent = sizeSlider.value + 'px'; draw(); });
-    opacitySlider.addEventListener('input', () => { opacityValDisplay.textContent = opacitySlider.value + '%'; draw(); });
+    sizeSlider.addEventListener('input', () => { sizeValDisplay.textContent = sizeSlider.value + 'px'; requestRender(); });
+    opacitySlider.addEventListener('input', () => { opacityValDisplay.textContent = opacitySlider.value + '%'; requestRender(); });
+
+    function updateTransform() { canvas.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale})`; }
+// ... (kode window.adjustSize di atasnya biarkan saja)
+
+    // --- SISIPKAN KODE INI DI SINI ---
+    let isDrawing = false;
+
+    function requestRender() {
+        if (!isDrawing) {
+            isDrawing = true;
+            requestAnimationFrame(() => {
+                draw();
+                isDrawing = false;
+            });
+        }
+    }
+    // ----------------------------------
 
     function updateTransform() { canvas.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale})`; }
 
+    function draw() {
+       // ... (isi fungsi draw jangan diubah)
+    }
     function draw() {
       if (!imgLoaded) { 
         canvas.width = 300; canvas.height = 300;
@@ -494,13 +513,44 @@
     }
 
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      isNewFile = true;
-      const reader = new FileReader();
-      reader.onload = (ev) => { img.src = ev.target.result; };
-      reader.readAsDataURL(file);
-    });
+    const file = e.target.files[0];
+    if (!file) return;
+    isNewFile = true;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const tempImg = new Image();
+        tempImg.onload = () => {
+            sourceImage = tempImg; // Simpan ke variabel global baru
+            isUsingCanvasSource = false;
+            imgLoaded = true;
+            setupHighResCanvas();
+            // ... (kode reset posisi stamp anda yang lama)
+            if (isNewFile) {
+                stampX = canvas.width * 0.05; stampY = canvas.height - (canvas.height * 0.1); 
+                const autoSize = Math.max(40, Math.round(canvas.width * 0.04));
+                sizeSlider.value = autoSize; sizeValDisplay.textContent = autoSize + 'px';
+                isNewFile = false;
+            }
+            draw();
+        };
+        tempImg.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+// Update sedikit fungsi draw() di baris ctx.drawImage
+function draw() {
+    if (!imgLoaded || !sourceImage) { 
+        // ... (kode placeholder 'Pilih Foto Dulu' anda)
+        return; 
+    }
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    
+    // PERUBAHAN PENTING: Menggambar dari sourceImage (bisa img atau canvas)
+    ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+    // ... (lanjutkan sisa kode draw() anda: teks, stamp, dll tidak perlu ubah)
+}
 
     img.onload = () => {
       imgLoaded = true;
@@ -515,7 +565,7 @@
     };
 
     window.addEventListener('resize', setupHighResCanvas);
-    [dtInput, fontColor, fontSelect, showDateToggle].forEach(el => el.addEventListener('input', draw));
+    [dtInput, fontColor, fontSelect, showDateToggle].forEach(el => el.addEventListener('input', requestRender));
 
     resetViewBtn.addEventListener('click', () => {
       if(imgLoaded) {
@@ -602,7 +652,7 @@
       } else if (e.touches.length === 1) {
         const pos = getPos(e.touches[0].clientX, e.touches[0].clientY);
         if (draggingStamp) {
-          stampX = pos.x - dragStart.x; stampY = pos.y - dragStart.y; draw();
+          stampX = pos.x - dragStart.x; stampY = pos.y - dragStart.y; requestRender();
         } else if (cropMode && cropStart) {
           const curX = Math.max(0, Math.min(pos.x, canvas.width));
           const curY = Math.max(0, Math.min(pos.y, canvas.height));
@@ -610,7 +660,7 @@
             x: Math.min(cropStart.x, curX), y: Math.min(cropStart.y, curY),
             w: Math.abs(curX - cropStart.x), h: Math.abs(curY - cropStart.y)
           };
-          draw();
+          requestRender();
         }
       }
     }, {passive: false});
@@ -630,10 +680,10 @@
     window.addEventListener('mousemove', (e) => {
       if(!imgLoaded) return;
       const pos = getPos(e.clientX, e.clientY);
-      if (draggingStamp) { stampX = pos.x - dragStart.x; stampY = pos.y - dragStart.y; draw(); } 
+      if (draggingStamp) { stampX = pos.x - dragStart.x; stampY = pos.y - dragStart.y; requestRender(); } 
       else if (cropMode && cropStart) {
         cropRect = { x: Math.min(cropStart.x, pos.x), y: Math.min(cropStart.y, pos.y), w: Math.abs(pos.x - cropStart.x), h: Math.abs(pos.y - cropStart.y) };
-        draw();
+        requestRender();
       }
     });
     window.addEventListener('mouseup', () => { draggingStamp = false; cropStart = null; });
@@ -673,16 +723,58 @@
 
     // --- FITUR ROTASI FOTO (EDITOR) ---
 rotateBtn.addEventListener('click', () => {
-    if(!imgLoaded) return; // Cek ada foto atau tidak
+    if(!imgLoaded || !sourceImage) return;
 
-    // 1. Matikan Crop Mode dulu (PENTING: agar koordinat tidak error)
-    if (cropMode) {
-        cropMode = false;
-        cropRect = null;
-        toggleCropBtn.textContent = '✂ Potong';
-        toggleCropBtn.classList.remove('btn-danger');
-        toggleCropBtn.classList.add('btn-secondary');
-    }
+    const originalText = rotateBtn.textContent;
+    rotateBtn.textContent = '⏳'; // Indikator visual
+
+    // Gunakan requestAnimationFrame agar UI sempat update icon loading
+    requestAnimationFrame(() => {
+        // 1. Tentukan ukuran canvas baru (tukar lebar/tinggi)
+        const w = isUsingCanvasSource ? sourceImage.width : sourceImage.naturalWidth;
+        const h = isUsingCanvasSource ? sourceImage.height : sourceImage.naturalHeight;
+        
+        const tempC = document.createElement('canvas');
+        tempC.width = h;
+        tempC.height = w;
+        const ctxT = tempC.getContext('2d');
+
+        // 2. Rotasi
+        ctxT.translate(tempC.width / 2, tempC.height / 2);
+        ctxT.rotate(90 * Math.PI / 180);
+        ctxT.drawImage(sourceImage, -w / 2, -h / 2);
+
+        // 3. MAGIC TRICK: Jadikan canvas hasil putaran sebagai SOURCE baru
+        // Kita TIDAK mengonversi ke jpg/base64. Kita simpan raw pixel data di memori.
+        sourceImage = tempC; 
+        isUsingCanvasSource = true;
+
+        // 4. Update canvas utama
+        // Kita perlu update ukuran canvas utama karena dimensi berubah
+        canvas.width = h;
+        canvas.height = w;
+        
+        // Sesuaikan tampilan layar (CSS)
+        const padding = 20; 
+        const isMobile = window.innerWidth < 768;
+        const screenW = isMobile ? (window.innerWidth - padding) : (window.innerWidth - 380);
+        const screenH = isMobile ? (window.innerHeight * 0.40) : (window.innerHeight - 80);
+        
+        const ratio = canvas.width / canvas.height;
+        let cssW = screenW; let cssH = cssW / ratio;
+        if (cssH > screenH) { cssH = screenH; cssW = cssH * ratio; }
+        canvas.style.width = `${cssW}px`; canvas.style.height = `${cssH}px`;
+
+        // 5. Reset Zoom & Draw
+        viewScale = 1; viewX = 0; viewY = 0; updateTransform();
+        
+        // Reset crop jika aktif agar tidak error
+        if (cropMode) { cropMode = false; toggleCropBtn.textContent = '✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); }
+
+        draw();
+        rotateBtn.textContent = originalText;
+    });
+});
 
     // 2. Buat Canvas Sementara untuk memutar
     const tempC = document.createElement('canvas');
@@ -818,6 +910,7 @@ rotateBtn.addEventListener('click', () => {
   </script>
 </body>
 </html>
+
 
 
 
