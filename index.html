@@ -345,28 +345,28 @@
     let stampX = 50, stampY = 100;
     let draggingStamp = false; 
     
-    // Crop State (ADVANCED)
+    // Crop State (ADVANCED 8 HANDLES)
     let cropMode = false; 
     let cropRect = null; // {x, y, w, h}
-    let cropAction = null; // 'create', 'move', 'nw', 'ne', 'sw', 'se'
+    let cropAction = null; // 'create', 'move', 'nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'
     let dragStartPos = {x:0, y:0};
-    let initialCropRect = null; // Snapshot rect saat mulai drag
+    let initialCropRect = null; 
 
     // Pinch Zoom State
     let initialPinchDist = 0; let initialScale = 1; let lastPanX = 0; let lastPanY = 0;
     
-    let isDrawing = false; // Untuk requestAnimationFrame
+    let isDrawing = false; 
 
     const MAX_DIMENSION = 4096;
     const MAX_FILE_SIZE = 4 * 1024 * 1024;
-    const HANDLE_SIZE = 20; // Ukuran area sentuh sudut crop
+    const HANDLE_SIZE = 24; // Ukuran handle sedikit diperbesar agar mudah disentuh
 
     // Init Date
     const now = new Date();
     const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     dtInput.value = localIso;
 
-    // --- 2. HELPER RENDERING (ANTI-LAG) ---
+    // --- 2. HELPER RENDERING ---
     function requestRender() {
         if (!isDrawing) {
             isDrawing = true;
@@ -422,42 +422,85 @@
         wrapText(text, stampX, stampY, canvas.width - (stampX + 20), fSize * 1.25);
         ctx.restore();
 
-        // --- RENDER CROP UI (ADVANCED) ---
+        // --- RENDER CROP UI (INTERAKTIF 8 TITIK) ---
         if (cropMode && cropRect) {
             ctx.save();
             
-            // 1. Gelapkan area di luar crop
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            // 1. Overlay Gelap (Dimming)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Sedikit lebih gelap agar kontras
             ctx.beginPath();
-            ctx.rect(0, 0, canvas.width, canvas.height); // Seluruh layar
-            // "Lubangi" area crop
+            ctx.rect(0, 0, canvas.width, canvas.height);
             ctx.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h); 
             ctx.clip("evenodd"); 
             ctx.fill();
 
-            // 2. Garis Crop
-            ctx.strokeStyle = '#fff'; 
-            ctx.lineWidth = 2 / viewScale; // Garis tetap tipis meski di-zoom
-            ctx.setLineDash([10, 5]);
+            // 2. Garis Batas Crop (Efek 'Ants Marching' statis)
+            // Kita gambar 2 garis: Hitam tebal di bawah, Putih putus-putus di atas
+            // Agar terlihat jelas di foto terang maupun gelap.
+            
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; // Bayangan hitam
+            ctx.lineWidth = 4 / viewScale;
+            ctx.setLineDash([]);
             ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
 
-            // 3. Handles (Titik Sudut)
-            // Hitung ukuran handle visual agar tidak terlalu besar saat di-zoom out
-            const visualHandle = 10 / viewScale; 
-            ctx.fillStyle = '#3b82f6'; // Warna biru primary
-            ctx.setLineDash([]); // Reset dash
+            ctx.strokeStyle = '#ffffff'; // Garis utama putih
+            ctx.lineWidth = 2 / viewScale; 
+            ctx.setLineDash([12, 6]); // Garis putus-putus lebih renggang
+            ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
 
-            // Fungsi gambar kotak kecil
-            const drawHandle = (x, y) => {
-                ctx.fillRect(x - visualHandle/2, y - visualHandle/2, visualHandle, visualHandle);
-                ctx.strokeRect(x - visualHandle/2, y - visualHandle/2, visualHandle, visualHandle);
+            // 3. HANDLES (8 Titik)
+            ctx.setLineDash([]);
+            const vHandle = HANDLE_SIZE / viewScale; 
+            const halfH = vHandle / 2;
+            
+            // Style Handle
+            ctx.fillStyle = '#3b82f6'; // Biru Primary
+            ctx.strokeStyle = '#ffffff'; // Border Putih
+            ctx.lineWidth = 2 / viewScale;
+
+            // Fungsi Helper Gambar Handle
+            const drawH = (cx, cy) => {
+                ctx.beginPath();
+                ctx.rect(cx - halfH, cy - halfH, vHandle, vHandle);
+                ctx.fill();
+                ctx.stroke();
             };
 
-            // Gambar 4 sudut
-            drawHandle(cropRect.x, cropRect.y); // NW
-            drawHandle(cropRect.x + cropRect.w, cropRect.y); // NE
-            drawHandle(cropRect.x, cropRect.y + cropRect.h); // SW
-            drawHandle(cropRect.x + cropRect.w, cropRect.y + cropRect.h); // SE
+            // Koordinat Kiri, Tengah, Kanan, Atas, Bawah
+            const l = cropRect.x;
+            const cX = cropRect.x + cropRect.w / 2;
+            const r = cropRect.x + cropRect.w;
+            const t = cropRect.y;
+            const cY = cropRect.y + cropRect.h / 2;
+            const b = cropRect.y + cropRect.h;
+
+            // Gambar 8 Titik
+            drawH(l, t);  // NW (Kiri Atas)
+            drawH(cX, t); // N  (Tengah Atas)
+            drawH(r, t);  // NE (Kanan Atas)
+            
+            drawH(r, cY); // E  (Kanan Tengah)
+            drawH(r, b);  // SE (Kanan Bawah)
+            
+            drawH(cX, b); // S  (Tengah Bawah)
+            drawH(l, b);  // SW (Kiri Bawah)
+            drawH(l, cY); // W  (Kiri Tengah)
+
+            // Grid Bantuan (Rule of Thirds) - Opsional, membuat lebih pro
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1 / viewScale;
+            ctx.beginPath();
+            // Vertikal
+            ctx.moveTo(cropRect.x + cropRect.w/3, cropRect.y);
+            ctx.lineTo(cropRect.x + cropRect.w/3, cropRect.y + cropRect.h);
+            ctx.moveTo(cropRect.x + 2*cropRect.w/3, cropRect.y);
+            ctx.lineTo(cropRect.x + 2*cropRect.w/3, cropRect.y + cropRect.h);
+            // Horizontal
+            ctx.moveTo(cropRect.x, cropRect.y + cropRect.h/3);
+            ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + cropRect.h/3);
+            ctx.moveTo(cropRect.x, cropRect.y + 2*cropRect.h/3);
+            ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + 2*cropRect.h/3);
+            ctx.stroke();
 
             ctx.restore();
         }
@@ -514,25 +557,35 @@
         draw();
     }
 
-    // --- 4. INTERAKSI TOUCH / MOUSE (LOGIKA CROP BARU) ---
+    // --- 4. INTERAKSI TOUCH / MOUSE (LOGIKA CROP 8 ARAH) ---
     
-    // Helper: Cek bagian mana yang disentuh pada Crop Rect
     function getHitRegion(x, y) {
         if (!cropRect) return null;
         
-        // Toleransi sentuhan disesuaikan dengan zoom level
+        // Area sentuh sedikit lebih besar dari visual handle
         const tol = (HANDLE_SIZE * 1.5) / viewScale; 
+        
+        const l = cropRect.x;
+        const cX = cropRect.x + cropRect.w / 2;
+        const r = cropRect.x + cropRect.w;
+        const t = cropRect.y;
+        const cY = cropRect.y + cropRect.h / 2;
+        const b = cropRect.y + cropRect.h;
 
-        // Cek Sudut (Corner)
-        if (Math.abs(x - cropRect.x) < tol && Math.abs(y - cropRect.y) < tol) return 'nw'; // Top-Left
-        if (Math.abs(x - (cropRect.x + cropRect.w)) < tol && Math.abs(y - cropRect.y) < tol) return 'ne'; // Top-Right
-        if (Math.abs(x - cropRect.x) < tol && Math.abs(y - (cropRect.y + cropRect.h)) < tol) return 'sw'; // Bottom-Left
-        if (Math.abs(x - (cropRect.x + cropRect.w)) < tol && Math.abs(y - (cropRect.y + cropRect.h)) < tol) return 'se'; // Bottom-Right
+        // Cek 8 Handle (Prioritas di atas garis/body)
+        if (Math.abs(x - l) < tol && Math.abs(y - t) < tol) return 'nw';
+        if (Math.abs(x - cX) < tol && Math.abs(y - t) < tol) return 'n'; // Top Center
+        if (Math.abs(x - r) < tol && Math.abs(y - t) < tol) return 'ne';
+        
+        if (Math.abs(x - r) < tol && Math.abs(y - cY) < tol) return 'e'; // Right Center
+        if (Math.abs(x - r) < tol && Math.abs(y - b) < tol) return 'se';
+        
+        if (Math.abs(x - cX) < tol && Math.abs(y - b) < tol) return 's'; // Bottom Center
+        if (Math.abs(x - l) < tol && Math.abs(y - b) < tol) return 'sw';
+        if (Math.abs(x - l) < tol && Math.abs(y - cY) < tol) return 'w'; // Left Center
 
         // Cek Badan (Move)
-        if (x > cropRect.x && x < cropRect.x + cropRect.w && y > cropRect.y && y < cropRect.y + cropRect.h) {
-            return 'move';
-        }
+        if (x > l && x < r && y > t && y < b) return 'move';
 
         return null;
     }
@@ -544,108 +597,84 @@
         return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
-    // --- HANDLE START (Touch/Mouse) ---
     function handleStart(clientX, clientY) {
         const pos = getPos(clientX, clientY);
         dragStartPos = pos;
 
-        // A. Jika Mode Crop Aktif
         if (cropMode) {
             const hit = getHitRegion(pos.x, pos.y);
-            
             if (hit) {
-                // User menyentuh crop box (Move atau Resize)
                 cropAction = hit;
-                initialCropRect = { ...cropRect }; // Snapshot posisi awal
+                initialCropRect = { ...cropRect };
             } else {
-                // User menyentuh di luar crop box -> Buat crop baru
                 cropAction = 'create';
                 cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
             }
-        } 
-        // B. Jika Mode Biasa (Geser Stamp)
-        else {
+        } else {
             const fSize = parseInt(sizeSlider.value);
-            // Hit box stamp sederhana
             if (pos.x >= stampX - fSize && pos.x <= stampX + (fSize*10) && pos.y >= stampY - fSize && pos.y <= stampY + (fSize*2)) {
                 draggingStamp = true;
             }
         }
     }
 
-    // --- HANDLE MOVE (Touch/Mouse) ---
     function handleMove(clientX, clientY) {
         const pos = getPos(clientX, clientY);
 
-        // A. Logika Crop
         if (cropMode && cropAction) {
             if (cropAction === 'create') {
-                // Logika buat baru (tarik diagonal)
                 cropRect.w = pos.x - dragStartPos.x;
                 cropRect.h = pos.y - dragStartPos.y;
-                // Normalisasi jika tarik ke kiri/atas (width/height negatif)
-                // (Ini ditangani visual nanti, atau dinormalkan saat mouseup)
             } 
             else if (cropAction === 'move') {
-                // Logika geser (Move)
                 const dx = pos.x - dragStartPos.x;
                 const dy = pos.y - dragStartPos.y;
                 cropRect.x = initialCropRect.x + dx;
                 cropRect.y = initialCropRect.y + dy;
             } 
             else {
-                // Logika Resize (Stretch sudut)
+                // LOGIKA STRETCH 8 ARAH
                 const dx = pos.x - dragStartPos.x;
                 const dy = pos.y - dragStartPos.y;
+                const i = initialCropRect;
 
-                if (cropAction === 'se') { // Tarik Bawah-Kanan
-                    cropRect.w = initialCropRect.w + dx;
-                    cropRect.h = initialCropRect.h + dy;
-                } else if (cropAction === 'sw') { // Tarik Bawah-Kiri
-                    cropRect.x = initialCropRect.x + dx;
-                    cropRect.w = initialCropRect.w - dx;
-                    cropRect.h = initialCropRect.h + dy;
-                } else if (cropAction === 'ne') { // Tarik Atas-Kanan
-                    cropRect.y = initialCropRect.y + dy;
-                    cropRect.w = initialCropRect.w + dx;
-                    cropRect.h = initialCropRect.h - dy;
-                } else if (cropAction === 'nw') { // Tarik Atas-Kiri
-                    cropRect.x = initialCropRect.x + dx;
-                    cropRect.y = initialCropRect.y + dy;
-                    cropRect.w = initialCropRect.w - dx;
-                    cropRect.h = initialCropRect.h - dy;
+                // Vertical Resize
+                if (cropAction.includes('n')) { // North (Atas)
+                    cropRect.y = i.y + dy;
+                    cropRect.h = i.h - dy;
+                }
+                if (cropAction.includes('s')) { // South (Bawah)
+                    cropRect.h = i.h + dy;
+                }
+
+                // Horizontal Resize
+                if (cropAction.includes('w')) { // West (Kiri)
+                    cropRect.x = i.x + dx;
+                    cropRect.w = i.w - dx;
+                }
+                if (cropAction.includes('e')) { // East (Kanan)
+                    cropRect.w = i.w + dx;
                 }
             }
             requestRender();
         } 
-        // B. Logika Geser Stamp
         else if (draggingStamp) {
-            stampX = pos.x - (dragStartPos.x - stampX); // Offset logic correction
-            // Karena stampX diupdate terus, kita perlu logic delta yang lebih simple:
-            // Lebih baik update dragStartPos setiap frame untuk stamp
-             stampX = pos.x; 
-             stampY = pos.y; 
+             stampX = pos.x; stampY = pos.y; 
             requestRender();
         }
     }
 
-    // --- HANDLE END ---
     function handleEnd() {
-        // Normalisasi Crop Rect (hilangkan nilai negatif width/height)
         if (cropMode && cropRect) {
+            // Normalisasi Rect (Fix nilai negatif)
             if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
             if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
         }
-        
-        cropAction = null;
-        draggingStamp = false;
-        initialCropRect = null;
+        cropAction = null; draggingStamp = false; initialCropRect = null;
     }
 
-
-    // --- EVENT LISTENERS (Unified) ---
+    // --- EVENT LISTENERS ---
     
-    // TOUCH
     canvasContainer.addEventListener('touchstart', (e) => {
         if(!imgLoaded) return;
         if (e.touches.length === 2) {
@@ -662,7 +691,6 @@
         if(!imgLoaded) return;
         e.preventDefault(); 
         if (e.touches.length === 2) {
-            // ZOOM / PAN
             const currentDist = getDist(e.touches);
             const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
             const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -677,36 +705,21 @@
 
     canvasContainer.addEventListener('touchend', handleEnd);
 
-    // MOUSE
-    canvasContainer.addEventListener('mousedown', (e) => {
-        if(!imgLoaded) return;
-        handleStart(e.clientX, e.clientY);
-    });
-    window.addEventListener('mousemove', (e) => {
-        if(!imgLoaded) return;
-        // Cek tombol mouse ditekan
-        if (e.buttons === 1) handleMove(e.clientX, e.clientY);
-    });
+    // MOUSE SUPPORT
+    canvasContainer.addEventListener('mousedown', (e) => { if(!imgLoaded) return; handleStart(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', (e) => { if(!imgLoaded) return; if (e.buttons === 1) handleMove(e.clientX, e.clientY); });
     window.addEventListener('mouseup', handleEnd);
 
 
-    // --- 5. INPUT FILE, KAMERA, & TOMBOL LAIN ---
-    // (Kode di bawah ini sama persis dengan versi fix sebelumnya, hanya copy paste ulang agar lengkap)
-
+    // --- 5. INPUT FILE & LAINNYA ---
     fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        isNewFile = true;
-        const reader = new FileReader();
+        const file = e.target.files[0]; if (!file) return;
+        isNewFile = true; const reader = new FileReader();
         reader.onload = (ev) => {
             const tempImg = new Image();
-            tempImg.onload = () => {
-                sourceImage = tempImg; isUsingCanvasSource = false; imgLoaded = true;
-                setupHighResCanvas();
-            };
+            tempImg.onload = () => { sourceImage = tempImg; isUsingCanvasSource = false; imgLoaded = true; setupHighResCanvas(); };
             tempImg.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
+        }; reader.readAsDataURL(file);
     });
 
     // KAMERA
@@ -724,8 +737,7 @@
         await startCamera();
     });
     async function startCamera() {
-        if (currentStream) stopCamera();
-        updateVideoStyle();
+        if (currentStream) stopCamera(); updateVideoStyle();
         try {
             currentStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: facingMode, width: {ideal:4096}, height: {ideal:2160} }});
             cameraVideo.srcObject = currentStream; cameraModal.style.display = 'flex';
@@ -752,7 +764,7 @@
         const n = new Date(); dtInput.value=new Date(n-n.getTimezoneOffset()*60000).toISOString().slice(0,16);
     });
 
-    // ROTATE IMAGE
+    // ROTATE
     rotateBtn.addEventListener('click', () => {
         if(!imgLoaded || !sourceImage) return;
         const origT = rotateBtn.textContent; rotateBtn.textContent = '⏳'; 
@@ -764,8 +776,7 @@
             xT.drawImage(sourceImage, -w/2, -h/2);
             sourceImage = tC; isUsingCanvasSource = true;
             setupHighResCanvas();
-            // Reset Crop jika aktif agar tidak error koordinat
-            if(cropMode) { cropRect = null; cropAction=null; }
+            if(cropMode) { cropRect = null; cropAction=null; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); cropMode=false; }
             draw(); rotateBtn.textContent = origT;
         });
     });
@@ -773,18 +784,14 @@
     // CROP BUTTON
     toggleCropBtn.addEventListener('click', () => {
         if (cropMode) {
-            // APPLY CROP
             if (cropRect && cropRect.w > 10 && cropRect.h > 10) applyCrop();
             cropMode = false;
             toggleCropBtn.textContent = '✂ Potong';
             toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
         } else {
-            // START CROP MODE
             cropMode = true; 
-            // Inisialisasi kotak crop di tengah layar (UX lebih baik)
             const cw = canvas.width; const ch = canvas.height;
             cropRect = { x: cw*0.1, y: ch*0.1, w: cw*0.8, h: ch*0.8 };
-            
             toggleCropBtn.textContent = '✅ Terapkan';
             toggleCropBtn.classList.remove('btn-secondary'); toggleCropBtn.classList.add('btn-danger');
         }
@@ -793,21 +800,17 @@
 
     function applyCrop() {
         if (!sourceImage || !cropRect) return;
-        // Pastikan width/height positif
         const x = cropRect.w < 0 ? cropRect.x + cropRect.w : cropRect.x;
         const y = cropRect.h < 0 ? cropRect.y + cropRect.h : cropRect.y;
         const w = Math.abs(cropRect.w);
         const h = Math.abs(cropRect.h);
-
         const tC = document.createElement('canvas'); tC.width = w; tC.height = h;
         const tX = tC.getContext('2d');
-        // Crop dari SOURCE image agar kualitas terjaga (bukan dari layar)
         tX.drawImage(sourceImage, x, y, w, h, 0, 0, w, h);
-        sourceImage = tC; isUsingCanvasSource = true;
-        setupHighResCanvas();
+        sourceImage = tC; isUsingCanvasSource = true; setupHighResCanvas();
     }
 
-    // UTILS LAIN
+    // UTILS
     gpsBtn.addEventListener('click', () => {
         if (!navigator.geolocation) return;
         gpsBtn.innerHTML = "⏳...";
@@ -867,7 +870,7 @@
         })(1.0);
     });
 
-    draw(); // First init
+    draw(); 
 </script>
 
 
