@@ -316,6 +316,7 @@
                 .catch(err => console.log('Gagal daftar Service Worker:', err));
         });
     }
+    
     // --- 1. INISIALISASI VARIABEL GLOBAL ---
     const fileInput = document.getElementById('fileInput');
     const dtInput = document.getElementById('dtInput');
@@ -353,26 +354,35 @@
     let stampX = 50, stampY = 100;
     let draggingStamp = false; 
     
-    // Crop State (ADVANCED 8 HANDLES)
+    // Crop State
     let cropMode = false; 
-    let cropRect = null; // {x, y, w, h}
-    let cropAction = null; // 'create', 'move', 'nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'
+    let cropRect = null; 
+    let cropAction = null; 
     let dragStartPos = {x:0, y:0};
     let initialCropRect = null; 
 
     // Pinch Zoom State
     let initialPinchDist = 0; let initialScale = 1; let lastPanX = 0; let lastPanY = 0;
-    
     let isDrawing = false; 
 
     const MAX_DIMENSION = 4096;
     const MAX_FILE_SIZE = 4 * 1024 * 1024;
-    const HANDLE_SIZE = 24; // Ukuran handle sedikit diperbesar agar mudah disentuh
+    
+    // --- SETTING UKURAN HANDLE (UPDATED FOR MOBILE) ---
+    const VISUAL_HANDLE_SIZE = 30; // Ukuran kotak biru yang terlihat (px)
+    const TOUCH_HANDLE_SIZE = 80;  // Area sentuh invisible (Sangat besar agar mudah kena jempol)
 
     // Init Date
     const now = new Date();
     const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     dtInput.value = localIso;
+
+    // --- Pendaftaran Service Worker (Agar Offline Jalan) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Gagal', err));
+        });
+    }
 
     // --- 2. HELPER RENDERING ---
     function requestRender() {
@@ -430,84 +440,51 @@
         wrapText(text, stampX, stampY, canvas.width - (stampX + 20), fSize * 1.25);
         ctx.restore();
 
-        // --- RENDER CROP UI (INTERAKTIF 8 TITIK) ---
+        // --- RENDER CROP UI ---
         if (cropMode && cropRect) {
             ctx.save();
             
-            // 1. Overlay Gelap (Dimming)
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Sedikit lebih gelap agar kontras
+            // Dimming Area Luar
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.beginPath();
             ctx.rect(0, 0, canvas.width, canvas.height);
             ctx.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h); 
             ctx.clip("evenodd"); 
             ctx.fill();
 
-            // 2. Garis Batas Crop (Efek 'Ants Marching' statis)
-            // Kita gambar 2 garis: Hitam tebal di bawah, Putih putus-putus di atas
-            // Agar terlihat jelas di foto terang maupun gelap.
-            
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; // Bayangan hitam
-            ctx.lineWidth = 4 / viewScale;
-            ctx.setLineDash([]);
+            // Garis Batas
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4 / viewScale; ctx.setLineDash([]);
+            ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 / viewScale; ctx.setLineDash([12, 6]);
             ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
 
-            ctx.strokeStyle = '#ffffff'; // Garis utama putih
-            ctx.lineWidth = 2 / viewScale; 
-            ctx.setLineDash([12, 6]); // Garis putus-putus lebih renggang
-            ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-
-            // 3. HANDLES (8 Titik)
+            // HANDLES (Visual Box)
             ctx.setLineDash([]);
-            const vHandle = HANDLE_SIZE / viewScale; 
+            // Kita pakai VISUAL_HANDLE_SIZE di sini agar tampilan tetap rapi (tidak terlalu besar)
+            const vHandle = VISUAL_HANDLE_SIZE / viewScale; 
             const halfH = vHandle / 2;
             
-            // Style Handle
-            ctx.fillStyle = '#3b82f6'; // Biru Primary
-            ctx.strokeStyle = '#ffffff'; // Border Putih
-            ctx.lineWidth = 2 / viewScale;
+            ctx.fillStyle = '#3b82f6'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 / viewScale;
 
-            // Fungsi Helper Gambar Handle
             const drawH = (cx, cy) => {
                 ctx.beginPath();
                 ctx.rect(cx - halfH, cy - halfH, vHandle, vHandle);
-                ctx.fill();
-                ctx.stroke();
+                ctx.fill(); ctx.stroke();
             };
 
-            // Koordinat Kiri, Tengah, Kanan, Atas, Bawah
-            const l = cropRect.x;
-            const cX = cropRect.x + cropRect.w / 2;
-            const r = cropRect.x + cropRect.w;
-            const t = cropRect.y;
-            const cY = cropRect.y + cropRect.h / 2;
-            const b = cropRect.y + cropRect.h;
+            const l = cropRect.x; const cX = cropRect.x + cropRect.w / 2; const r = cropRect.x + cropRect.w;
+            const t = cropRect.y; const cY = cropRect.y + cropRect.h / 2; const b = cropRect.y + cropRect.h;
 
-            // Gambar 8 Titik
-            drawH(l, t);  // NW (Kiri Atas)
-            drawH(cX, t); // N  (Tengah Atas)
-            drawH(r, t);  // NE (Kanan Atas)
-            
-            drawH(r, cY); // E  (Kanan Tengah)
-            drawH(r, b);  // SE (Kanan Bawah)
-            
-            drawH(cX, b); // S  (Tengah Bawah)
-            drawH(l, b);  // SW (Kiri Bawah)
-            drawH(l, cY); // W  (Kiri Tengah)
+            drawH(l, t); drawH(cX, t); drawH(r, t);
+            drawH(r, cY); drawH(r, b); drawH(cX, b);
+            drawH(l, b); drawH(l, cY);
 
-            // Grid Bantuan (Rule of Thirds) - Opsional, membuat lebih pro
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 1 / viewScale;
-            ctx.beginPath();
-            // Vertikal
-            ctx.moveTo(cropRect.x + cropRect.w/3, cropRect.y);
-            ctx.lineTo(cropRect.x + cropRect.w/3, cropRect.y + cropRect.h);
-            ctx.moveTo(cropRect.x + 2*cropRect.w/3, cropRect.y);
-            ctx.lineTo(cropRect.x + 2*cropRect.w/3, cropRect.y + cropRect.h);
-            // Horizontal
-            ctx.moveTo(cropRect.x, cropRect.y + cropRect.h/3);
-            ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + cropRect.h/3);
-            ctx.moveTo(cropRect.x, cropRect.y + 2*cropRect.h/3);
-            ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + 2*cropRect.h/3);
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1 / viewScale; ctx.beginPath();
+            ctx.moveTo(cropRect.x + cropRect.w/3, cropRect.y); ctx.lineTo(cropRect.x + cropRect.w/3, cropRect.y + cropRect.h);
+            ctx.moveTo(cropRect.x + 2*cropRect.w/3, cropRect.y); ctx.lineTo(cropRect.x + 2*cropRect.w/3, cropRect.y + cropRect.h);
+            ctx.moveTo(cropRect.x, cropRect.y + cropRect.h/3); ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + cropRect.h/3);
+            ctx.moveTo(cropRect.x, cropRect.y + 2*cropRect.h/3); ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + 2*cropRect.h/3);
             ctx.stroke();
 
             ctx.restore();
@@ -565,13 +542,15 @@
         draw();
     }
 
-    // --- 4. INTERAKSI TOUCH / MOUSE (LOGIKA CROP 8 ARAH) ---
+    // --- 4. INTERAKSI TOUCH (UPDATED HIT REGION) ---
     
     function getHitRegion(x, y) {
         if (!cropRect) return null;
         
-        // Area sentuh sedikit lebih besar dari visual handle
-        const tol = (HANDLE_SIZE * 1.5) / viewScale; 
+        // PENGATURAN TOLERANSI SENTUH (SANGAT PENTING UNTUK HP)
+        // Kita pakai TOUCH_HANDLE_SIZE agar area deteksinya luas
+        const hitSize = (TOUCH_HANDLE_SIZE / viewScale); 
+        const halfHit = hitSize / 2;
         
         const l = cropRect.x;
         const cX = cropRect.x + cropRect.w / 2;
@@ -580,19 +559,23 @@
         const cY = cropRect.y + cropRect.h / 2;
         const b = cropRect.y + cropRect.h;
 
-        // Cek 8 Handle (Prioritas di atas garis/body)
-        if (Math.abs(x - l) < tol && Math.abs(y - t) < tol) return 'nw';
-        if (Math.abs(x - cX) < tol && Math.abs(y - t) < tol) return 'n'; // Top Center
-        if (Math.abs(x - r) < tol && Math.abs(y - t) < tol) return 'ne';
-        
-        if (Math.abs(x - r) < tol && Math.abs(y - cY) < tol) return 'e'; // Right Center
-        if (Math.abs(x - r) < tol && Math.abs(y - b) < tol) return 'se';
-        
-        if (Math.abs(x - cX) < tol && Math.abs(y - b) < tol) return 's'; // Bottom Center
-        if (Math.abs(x - l) < tol && Math.abs(y - b) < tol) return 'sw';
-        if (Math.abs(x - l) < tol && Math.abs(y - cY) < tol) return 'w'; // Left Center
+        // Cek apakah koordinat (x,y) masuk dalam kotak imajiner handle
+        const check = (tx, ty) => {
+            return (x >= tx - halfHit && x <= tx + halfHit && y >= ty - halfHit && y <= ty + halfHit);
+        };
 
-        // Cek Badan (Move)
+        if (check(l, t)) return 'nw';
+        if (check(cX, t)) return 'n';
+        if (check(r, t)) return 'ne';
+        
+        if (check(r, cY)) return 'e';
+        if (check(r, b)) return 'se';
+        
+        if (check(cX, b)) return 's';
+        if (check(l, b)) return 'sw';
+        if (check(l, cY)) return 'w';
+
+        // Cek Move (Badan)
         if (x > l && x < r && y > t && y < b) return 'move';
 
         return null;
@@ -641,28 +624,14 @@
                 cropRect.y = initialCropRect.y + dy;
             } 
             else {
-                // LOGIKA STRETCH 8 ARAH
                 const dx = pos.x - dragStartPos.x;
                 const dy = pos.y - dragStartPos.y;
                 const i = initialCropRect;
 
-                // Vertical Resize
-                if (cropAction.includes('n')) { // North (Atas)
-                    cropRect.y = i.y + dy;
-                    cropRect.h = i.h - dy;
-                }
-                if (cropAction.includes('s')) { // South (Bawah)
-                    cropRect.h = i.h + dy;
-                }
-
-                // Horizontal Resize
-                if (cropAction.includes('w')) { // West (Kiri)
-                    cropRect.x = i.x + dx;
-                    cropRect.w = i.w - dx;
-                }
-                if (cropAction.includes('e')) { // East (Kanan)
-                    cropRect.w = i.w + dx;
-                }
+                if (cropAction.includes('n')) { cropRect.y = i.y + dy; cropRect.h = i.h - dy; }
+                if (cropAction.includes('s')) { cropRect.h = i.h + dy; }
+                if (cropAction.includes('w')) { cropRect.x = i.x + dx; cropRect.w = i.w - dx; }
+                if (cropAction.includes('e')) { cropRect.w = i.w + dx; }
             }
             requestRender();
         } 
@@ -674,7 +643,6 @@
 
     function handleEnd() {
         if (cropMode && cropRect) {
-            // Normalisasi Rect (Fix nilai negatif)
             if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
             if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
         }
@@ -682,7 +650,6 @@
     }
 
     // --- EVENT LISTENERS ---
-    
     canvasContainer.addEventListener('touchstart', (e) => {
         if(!imgLoaded) return;
         if (e.touches.length === 2) {
@@ -713,7 +680,7 @@
 
     canvasContainer.addEventListener('touchend', handleEnd);
 
-    // MOUSE SUPPORT
+    // MOUSE
     canvasContainer.addEventListener('mousedown', (e) => { if(!imgLoaded) return; handleStart(e.clientX, e.clientY); });
     window.addEventListener('mousemove', (e) => { if(!imgLoaded) return; if (e.buttons === 1) handleMove(e.clientX, e.clientY); });
     window.addEventListener('mouseup', handleEnd);
