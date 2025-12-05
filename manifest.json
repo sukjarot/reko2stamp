@@ -9,9 +9,10 @@
   "icons": [
     {
       "src": "icon ultimate.png",
-      "sizes": "514x514",
+      "sizes": "1024x1024",
       "type": "image/png"
     }
   ]
 
 }
+
