@@ -788,7 +788,6 @@
     }
 
     // GPS Location
-    // --- KODE BARU: TOMBOL GPS DENGAN LOCATIONIQ ---
     gpsBtn.addEventListener('click', () => {
         if (!navigator.geolocation) {
             alert("Browser tidak mendukung GPS.");
@@ -836,52 +835,61 @@
             maximumAge: 0
         });
     });
-
+// --- PENCARIAN MANUAL LOKASI ---
     let debT;
     locInput.addEventListener('input', (e) => {
-        requestRender(); // Update tampilan teks di foto real-time
+        requestRender(); 
         
-        const query = e.target.value.split('\n')[0]; // Ambil baris pertama saja untuk pencarian
-        if(query.length < 3) return; // Jangan cari kalau baru ngetik 1-2 huruf
+        const q = e.target.value.split('\n')[0]; 
+        if(q.length < 3) return; 
 
         clearTimeout(debT);
         debT = setTimeout(async() => {
             try {
-                // Menggunakan API Search LocationIQ
-                const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`;
+                // Tambahkan '&addressdetails=1' untuk memastikan data lengkap
+                const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1`;
                 
                 const r = await fetch(url);
                 const res = await r.json();
                 
                 suggestionsBox.innerHTML = '';
-                
                 if (Array.isArray(res) && res.length > 0) {
                     suggestionsBox.style.display = 'block';
-                    res.forEach(p => {
-                        const d = document.createElement('div');
-                        d.className = 'suggestion-item';
-                        // Tampilkan nama tempat + sedikit detail di bawahnya
-                        d.textContent = p.display_name; 
+                    res.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        // Tampilkan nama di list saran
+                        div.textContent = item.display_name; 
                         
-                        d.onclick = () => {
-                            // Saat dipilih, ambil nama tempatnya saja
-                            // Biar tidak kepanjangan, kita ambil 3 bagian pertama
-                            let simpleName = p.display_name.split(',').slice(0, 3).join(',');
+                        div.onclick = () => {
+                            // --- LOGIKA BARU: MENGAMBIL LEBIH BANYAK DETAIL ---
+                            let parts = item.display_name.split(',');
+
+                            // Kita ambil 6 bagian pertama agar mencakup:
+                            // 1. Nama Gedung/Tempat
+                            // 2. Jalan & Nomor
+                            // 3. Desa/Kelurahan
+                            // 4. Kecamatan
+                            // 5. Kota/Kabupaten
+                            // 6. Provinsi
+                            // (Biasanya Kode Pos dan Negara ada di urutan belakang, jadi aman terpotong)
+                            let detailedName = parts.slice(0, 6).join(',').trim();
+
+                            // Masukkan ke input box
+                            locInput.value = `${detailedName}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
                             
-                            locInput.value = `${simpleName}\n(${parseFloat(p.lat).toFixed(5)}, ${parseFloat(p.lon).toFixed(5)})`;
                             suggestionsBox.style.display = 'none';
                             requestRender();
                         };
-                        suggestionsBox.appendChild(d);
+                        suggestionsBox.appendChild(div);
                     });
                 } else {
                     suggestionsBox.style.display = 'none';
                 }
-            } catch(err) {
-                // Silent error (tidak perlu alert kalau gagal search)
-            }
-        }, 800); // Delay sedikit lebih lama (800ms) agar hemat request API
+            } catch(err) { }
+        }, 800); 
     });
+    
     document.addEventListener('click', e => { if(!e.target.closest('.location-wrapper')) suggestionsBox.style.display='none'; });
 
     window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
