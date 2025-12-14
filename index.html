@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Reko2stamp-Ultimate (2.5)</title>
+  <title>Reko2stamp-Super (2.7)</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon ultimate.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +12,12 @@
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN/RANEjZfcMRS98UlpzSzCiqTBLAJXwY=" crossorigin=""/>
+  
+  <!-- Leaflet Search Plugin -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-search@4.0.0/dist/leaflet-search.min.css" />
+  
+  <!-- Leaflet Locate Control -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.css" />
   
   <style>
     :root {
@@ -219,11 +225,16 @@
       margin-top: 8px; width: 100%;
     }
     .map-btn:hover { background: var(--success); color: white; }
+
+    /* Fix black background on map */
+    .leaflet-container {
+      background: #ffffff !important;
+    }
   </style>
 </head>
 <body>
 
-  <header>Reko2stamp-Ultimate (2.5)</header>
+  <header>Reko2stamp-SUPER (2.7)</header>
 
   <main>
     <aside class="controls">
@@ -274,7 +285,6 @@
     </section>
   </main>
   
-  <!-- Modal Kamera tetap sama -->
   
   <!-- Modal untuk Peta -->
   <div id="mapModal" class="camera-modal">
@@ -282,14 +292,155 @@
     
     <div class="map-controls">
       <button id="closeMapBtn" class="cam-action-btn" title="Tutup">❌</button>
+      <button id="confirmMapBtn" class="cam-action-btn" title="Konfirmasi Lokasi">✅</button>
     </div>
   </div>
   
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
+  <!-- Leaflet Search Plugin -->
+  <script src="https://unpkg.com/leaflet-search@4.0.0/dist/leaflet-search.min.js"></script>
+  
+  <!-- Leaflet Locate Control -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+  
   <script>
-    // ... (kode sebelumnya tetap sama sampai bagian FITUR CEK PETA) ...
+    // --- FITUR BARU: CEK PETA (Diperbaiki + Search + Locate + Custom Pin + Fix Black Tiles) ---
+    const mapModal = document.getElementById('mapModal');
+    const closeMapBtn = document.getElementById('closeMapBtn');
+    let map = null;
+    let marker = null;
+    let locateControl = null;
+
+    async function initMap(lat = -2.5489, lng = 118.0149, zoom = 5) {
+      map = L.map('mapView', {
+        zoomSnap: 0.1,
+        zoomDelta: 0.5,
+        wheelPxPerZoomLevel: 120,
+        touchZoom: true,
+        doubleClickZoom: true,
+        scrollWheelZoom: true,
+        dragging: true,
+        zoomAnimation: true,
+        fadeAnimation: true,
+        markerZoomAnimation: true,
+        inertia: true,
+        inertiaDeceleration: 3000,
+        inertiaMaxSpeed: 1500
+      }).setView([lat, lng], zoom);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Custom Pin Icon (merah klasik dengan shadow)
+      const customPin = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+
+      // Tambahkan Search Control (mencari lokasi global)
+      map.addControl(new L.Control.Search({
+        position: 'topleft',
+        sourceData: async function(text, callResponse) {
+          try {
+            const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(text)}&format=json&limit=5`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const results = data.map(item => ({
+              loc: [parseFloat(item.lat), parseFloat(item.lon)],
+              title: item.display_name
+            }));
+            callResponse(results);
+          } catch (err) {
+            callResponse([]);
+          }
+        },
+        formatData: function(json) {
+          return json;
+        },
+        marker: { icon: customPin },
+        zoom: 16,
+        minLength: 3,
+        autoType: false,
+        textPlaceholder: 'Cari lokasi...'
+      }));
+
+      // Tambahkan Locate Control (tombol GPS di peta)
+      locateControl = L.control.locate({
+        position: 'topright',
+        icon: 'fa fa-location-arrow',
+        strings: {
+          title: "Tunjukkan posisi saya"
+        },
+        locateOptions: {
+          enableHighAccuracy: true,
+          maxZoom: 18
+        },
+        showPopup: false,
+        flyTo: true,
+        keepCurrentZoomLevel: false
+      }).addTo(map);
+
+      // Event klik untuk pilih lokasi
+      map.on('click', async function(e) {
+        if (marker) map.removeLayer(marker);
+        marker = L.marker(e.latlng, { icon: customPin }).addTo(map);
+
+        try {
+          const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`;
+          const r = await fetch(url);
+          const d = await r.json();
+
+          if (d.error) throw new Error(d.error);
+
+          let addressParts = d.display_name.split(',');
+          let simpleAddress = addressParts.slice(0, 3).join(',').trim();
+
+          locInput.value = `${simpleAddress}\n(${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`;
+          draw();
+        } catch (err) {
+          console.error(err);
+          locInput.value = `Lokasi dipilih\n(${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`;
+          draw();
+        }
+      });
+    }
+
+    mapBtn.addEventListener('click', () => {
+      mapModal.style.display = 'flex';
+      if (!map) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(pos => {
+            initMap(pos.coords.latitude, pos.coords.longitude, 16);
+          }, () => {
+            initMap(); // Default Indonesia
+          });
+        } else {
+          initMap();
+        }
+      } else {
+        // Fix tampilan hitam / tiles tidak load
+        setTimeout(() => {
+          map.invalidateSize(true);
+        }, 200);
+      }
+    });
+
+    closeMapBtn.addEventListener('click', () => {
+      mapModal.style.display = 'none';
+    });
+
+    // Optional: Tombol konfirmasi jika ingin tutup otomatis setelah pilih
+    document.getElementById('confirmMapBtn').addEventListener('click', () => {
+    mapModal.style.display = 'none';
+    });
 
     // --- FITUR BARU: CEK PETA (Ditingkatkan untuk zoom & pan lebih halus) ---
     const mapModal = document.getElementById('mapModal');
@@ -402,4 +553,5 @@
 
 </body>
 </html>
+
 
