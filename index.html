@@ -590,66 +590,133 @@
         return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
-    function handleStart(clientX, clientY) {
-        const pos = getPos(clientX, clientY);
-        dragStartPos = pos;
+    // --- FUNGSI BARU: HIT DETECTION LEBIH BAIK UNTUK STAMP TEKS ---
+  function getTextBoundingBox() {
+      if (!imgLoaded || !sourceImage) return null;
 
-        if (cropMode) {
-            const hit = getHitRegion(pos.x, pos.y);
-            if (hit) {
-                cropAction = hit;
-                initialCropRect = { ...cropRect };
-            } else {
-                cropAction = 'create';
-                cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
-            }
-        } else {
-            const fSize = parseInt(sizeSlider.value);
-            if (pos.x >= stampX - fSize && pos.x <= stampX + (fSize*10) && pos.y >= stampY - fSize && pos.y <= stampY + (fSize*2)) {
-                draggingStamp = true;
-            }
-        }
-    }
+      const text = buildStampText();
+      if (!text.trim()) return null;
 
-    function handleMove(clientX, clientY) {
-        const pos = getPos(clientX, clientY);
+      const fSize = parseInt(sizeSlider.value);
+      const lines = text.split('\n');
+      const lineHeight = fSize * 1.25;
 
-        if (cropMode && cropAction) {
-            if (cropAction === 'create') {
-                cropRect.w = pos.x - dragStartPos.x;
-                cropRect.h = pos.y - dragStartPos.y;
-            } 
-            else if (cropAction === 'move') {
-                const dx = pos.x - dragStartPos.x;
-                const dy = pos.y - dragStartPos.y;
-                cropRect.x = initialCropRect.x + dx;
-                cropRect.y = initialCropRect.y + dy;
-            } 
-            else {
-                const dx = pos.x - dragStartPos.x;
-                const dy = pos.y - dragStartPos.y;
-                const i = initialCropRect;
+      // Sementara set font untuk measureText
+      ctx.font = `bold ${fSize}px "${fontSelect.value}"`;
 
-                if (cropAction.includes('n')) { cropRect.y = i.y + dy; cropRect.h = i.h - dy; }
-                if (cropAction.includes('s')) { cropRect.h = i.h + dy; }
-                if (cropAction.includes('w')) { cropRect.x = i.x + dx; cropRect.w = i.w - dx; }
-                if (cropAction.includes('e')) { cropRect.w = i.w + dx; }
-            }
-            requestRender();
-        } 
-        else if (draggingStamp) {
-             stampX = pos.x; stampY = pos.y; 
-            requestRender();
-        }
-    }
+      let maxWidth = 0;
+      lines.forEach(line => {
+          const metrics = ctx.measureText(line);
+          if (metrics.width > maxWidth) maxWidth = metrics.width;
+      });
 
-    function handleEnd() {
-        if (cropMode && cropRect) {
-            if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
-            if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
-        }
-        cropAction = null; draggingStamp = false; initialCropRect = null;
-    }
+      const textWidth = maxWidth;
+      const textHeight = lines.length * lineHeight;
+
+      // Bounding box (actualBounds tanpa shadow)
+      return {
+          x: stampX,
+          y: stampY - fSize, // karena fillText mulai dari baseline atas
+          w: textWidth,
+          h: textHeight
+      };
+  }
+
+  function isPointInTextArea(posX, posY) {
+      const bbox = getTextBoundingBox();
+      if (!bbox) return false;
+
+      // Padding besar untuk kemudahan sentuh (40px di semua sisi)
+      const padding = 40;
+
+      return (
+          posX >= bbox.x - padding &&
+          posX <= bbox.x + bbox.w + padding &&
+          posY >= bbox.y - padding &&
+          posY <= bbox.y + bbox.h + padding
+      );
+  }
+
+  // --- PERBAIKAN HANDLE START (drag stamp lebih leluasa) ---
+  function handleStart(clientX, clientY) {
+      const pos = getPos(clientX, clientY);
+      dragStartPos = pos;
+
+      if (cropMode) {
+          const hit = getHitRegion(pos.x, pos.y);
+          if (hit) {
+              cropAction = hit;
+              initialCropRect = { ...cropRect };
+          } else {
+              cropAction = 'create';
+              cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
+          }
+      } else {
+          // PERBAIKAN: Deteksi drag stamp berdasarkan bounding box teks + padding
+          if (isPointInTextArea(pos.x, pos.y)) {
+              draggingStamp = true;
+              // Offset agar posisi cursor tetap konsisten saat drag
+              const bbox = getTextBoundingBox();
+              if (bbox) {
+                  dragStartPos.offsetX = pos.x - stampX;
+                  dragStartPos.offsetY = pos.y - (stampY - parseInt(sizeSlider.value));
+              }
+          }
+      }
+  }
+
+  function handleMove(clientX, clientY) {
+      const pos = getPos(clientX, clientY);
+
+      if (cropMode && cropAction) {
+          if (cropAction === 'create') {
+              cropRect.w = pos.x - dragStartPos.x;
+              cropRect.h = pos.y - dragStartPos.y;
+          } 
+          else if (cropAction === 'move') {
+              const dx = pos.x - dragStartPos.x;
+              const dy = pos.y - dragStartPos.y;
+              cropRect.x = initialCropRect.x + dx;
+              cropRect.y = initialCropRect.y + dy;
+          } 
+          else {
+              const dx = pos.x - dragStartPos.x;
+              const dy = pos.y - dragStartPos.y;
+              const i = initialCropRect;
+
+              if (cropAction.includes('n')) { cropRect.y = i.y + dy; cropRect.h = i.h - dy; }
+              if (cropAction.includes('s')) { cropRect.h = i.h + dy; }
+              if (cropAction.includes('w')) { cropRect.x = i.x + dx; cropRect.w = i.w - dx; }
+              if (cropAction.includes('e')) { cropRect.w = i.w + dx; }
+          }
+          requestRender();
+      } 
+      else if (draggingStamp) {
+          // PERBAIKAN: Gunakan offset agar grip tidak "snap" ke kiri
+          if (dragStartPos.offsetX !== undefined) {
+              stampX = pos.x - dragStartPos.offsetX;
+              stampY = pos.y - dragStartPos.offsetY + parseInt(sizeSlider.value); // kompensasi baseline
+          } else {
+              stampX = pos.x;
+              stampY = pos.y;
+          }
+          requestRender();
+      }
+  }
+
+  // handleEnd tetap sama
+  function handleEnd() {
+      if (cropMode && cropRect) {
+          if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
+          if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
+      }
+      cropAction = null; 
+      draggingStamp = false; 
+      initialCropRect = null;
+      // Reset offset
+      delete dragStartPos.offsetX;
+      delete dragStartPos.offsetY;
+  }
 
     // --- EVENT LISTENERS ---
     canvasContainer.addEventListener('touchstart', (e) => {
