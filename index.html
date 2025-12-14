@@ -5,18 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Reko2stamp-Super (2.7)</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="icon ultimate.png">
+  <link rel="icon" type="image/png" href="icon.png">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN/RANEjZfcMRS98UlpzSzCiqTBLAJXwY=" crossorigin=""/>
-  
-  <!-- Leaflet Search Plugin -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet-search@4.0.0/dist/leaflet-search.min.css" />
-  
-  <!-- Leaflet Locate Control -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.css" />
   
   <style>
@@ -48,16 +44,14 @@
       
       font-family: 'Montserrat', sans-serif; 
       font-weight: 700; 
-      font-size: 24px;  
+      font-size: 20px;  
       color: #e0f2fe;   
-      letter-spacing: 1.5px; 
+      letter-spacing: 1px; 
       text-transform: capitalize;
       
       text-shadow: 
           0 0 5px  rgba(6, 182, 212, 0.8),   
-          0 0 10px rgba(6, 182, 212, 0.6),   
-          0 0 20px rgba(59, 130, 246, 0.4),  
-          0 0 40px rgba(59, 130, 246, 0.2);  
+          0 0 10px rgba(6, 182, 212, 0.6);  
     }
 
     main { display: flex; flex-direction: row; height: calc(100vh - 50px); }
@@ -69,7 +63,7 @@
       background-image: radial-gradient(#334155 1px, transparent 1px);
       background-size: 20px 20px; order: 2; 
     }
-    canvas { box-shadow: 0 0 40px rgba(0,0,0,0.5); transform-origin: 0 0; }
+    canvas { box-shadow: 0 0 40px rgba(0,0,0,0.5); max-width: 100%; max-height: 100%; }
 
     .controls { 
       width: 360px; background: var(--bg-panel); padding: 20px; 
@@ -81,14 +75,14 @@
     label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; display: block; font-weight: 500; text-transform: uppercase; }
 
     input[type="text"], input[type="datetime-local"], select, textarea {
-      width: 100%; padding: 12px; background: var(--bg-input); 
+      width: 100%; padding: 10px; background: var(--bg-input); 
       border: 1px solid transparent; border-radius: var(--radius); 
       color: white; font-family: inherit; outline: none; font-size: 14px;
     }
-    textarea { resize: vertical; min-height: 80px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
+    textarea { resize: vertical; min-height: 70px; line-height: 1.4; white-space: pre-wrap; }
     input:focus, textarea:focus { border-color: var(--primary); background: #475569; }
 
-    /* LOCATION AUTOCOMPLETE STYLE */
+    /* LOCATION & BUTTONS */
     .location-wrapper { position: relative; }
     .suggestions-list {
       position: absolute; top: 100%; left: 0; right: 0;
@@ -97,139 +91,103 @@
       max-height: 200px; overflow-y: auto;
       display: none; box-shadow: 0 10px 15px rgba(0,0,0,0.5);
     }
-    .suggestion-item {
-      padding: 10px; font-size: 13px; border-bottom: 1px solid #334155;
-      cursor: pointer; color: #e2e8f0;
-    }
-    .suggestion-item:hover { background: var(--primary); color: white; }
-    .gps-btn {
-      background: rgba(16, 185, 129, 0.2); color: var(--success);
-      border: 1px solid var(--success); padding: 8px 12px;
+    .gps-btn, .map-btn {
+      background: rgba(16, 185, 129, 0.15); color: var(--success);
+      border: 1px solid var(--success); padding: 8px;
       border-radius: 6px; font-size: 13px; cursor: pointer;
       font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;
-      margin-top: 8px; width: 100%;
+      width: 100%; transition: all 0.2s;
     }
-    .gps-btn:hover { background: var(--success); color: white; }
+    .gps-btn:hover, .map-btn:hover { background: var(--success); color: white; }
 
     /* TOGGLE SWITCH */
     .toggle-row {
         display: flex; justify-content: space-between; align-items: center;
         background: var(--bg-input); padding: 8px 12px; border-radius: var(--radius);
-        margin-bottom: 8px;
+        margin-bottom: 5px;
     }
     .toggle-label { margin: 0; font-size: 0.85rem; color: white; text-transform: none; }
     .switch { position: relative; display: inline-block; width: 42px; height: 24px; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
+    .slider-toggle {
       position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
       background-color: #64748b; transition: .4s; border-radius: 24px;
     }
-    .slider:before {
+    .slider-toggle:before {
       position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
       background-color: white; transition: .4s; border-radius: 50%;
     }
-    input:checked + .slider { background-color: var(--primary); }
-    input:checked + .slider:before { transform: translateX(18px); }
+    input:checked + .slider-toggle { background-color: var(--primary); }
+    input:checked + .slider-toggle:before { transform: translateX(18px); }
 
-    /* SLIDERS */
+    /* RANGE SLIDERS */
     .slider-container { background: var(--bg-input); padding: 10px; border-radius: var(--radius); }
-    .slider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem; }
-    .slider-group { display: flex; align-items: center; gap: 8px; }
-    .btn-adjust {
-      width: 30px; height: 30px; background: #475569; border: none; border-radius: 50%;
-      color: white; cursor: pointer; display: grid; place-items: center; font-weight: bold;
-    }
-    input[type=range] { flex-grow: 1; height: 4px; background: #1e293b; border-radius: 2px; -webkit-appearance: none; }
+    .slider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #cbd5e1; }
+    input[type=range] { width: 100%; height: 4px; background: #1e293b; border-radius: 2px; -webkit-appearance: none; cursor: pointer;}
     input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary); border-radius: 50%; border: 2px solid white; cursor: pointer;
+      -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary); border-radius: 50%; border: 2px solid white; margin-top: -7px;
     }
+    input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #475569; border-radius: 2px; }
 
     /* BUTTONS */
-    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    button.main-btn {
+    .main-btn {
       padding: 14px; border: none; border-radius: var(--radius); font-weight: 600;
-      cursor: pointer; font-size: 0.9rem; color: white; transition: 0.2s;
+      cursor: pointer; font-size: 0.9rem; color: white; transition: 0.2s; width: 100%;
     }
-    button.main-btn:active { transform: scale(0.96); }
     .btn-secondary { background: #334155; }
     .btn-primary { background: var(--primary); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
     .btn-danger { background: var(--danger); }
     .file-btn {
       background: linear-gradient(45deg, #3b82f6, #6366f1);
-      padding: 12px; border-radius: var(--radius); text-align: center; cursor: pointer; font-weight: 600;
-      display: block; width: 100%;
+      padding: 10px; border-radius: var(--radius); text-align: center; cursor: pointer; font-weight: 600;
+      display: block; width: 100%; font-size: 14px;
     }
 
     @media (max-width: 768px) {
       main { flex-direction: column; }
-      .canvas-wrap { order: 1; height: 45vh; width: 100%; border-bottom: 1px solid #334155; }
+      .canvas-wrap { order: 1; height: 40vh; width: 100%; border-bottom: 1px solid #334155; }
       .controls { 
-        order: 2; height: 55vh; width: 100%; border-right: none; 
+        order: 2; height: 60vh; width: 100%; border-right: none; 
         border-top: 1px solid #334155; border-radius: 20px 20px 0 0;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.4); padding-bottom: 80px; 
+        padding-bottom: 80px; 
       }
     }
 
-    /* CSS KAMERA */
-    .input-group-row {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
-    }
+    /* KAMERA & MODAL */
+    .input-group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
     .camera-modal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; z-index: 9999;
       display: none; flex-direction: column;
     }
-    .camera-view {
-      flex-grow: 1; width: 100%; height: 100%; object-fit: cover;
-      background: #000; transition: transform 0.3s ease;
-    }
-    .camera-controls {
-      position: absolute; bottom: 30px; left: 0; width: 100%;
-      display: flex; justify-content: space-around; align-items: center;
-      padding: 0 20px;
-    }
-    .shutter-btn {
-      width: 70px; height: 70px; border-radius: 50%;
-      background: white; border: 4px solid rgba(255,255,255,0.3);
-      cursor: pointer; transition: 0.2s;
-    }
-    .shutter-btn:active { transform: scale(0.9); background: #eee; }
-    .cam-action-btn {
-      background: rgba(255,255,255,0.2); border: none; color: white;
-      padding: 12px; border-radius: 50%; cursor: pointer;
-      font-size: 1.2rem; width: 50px; height: 50px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .cam-action-btn:hover { background: rgba(255,255,255,0.4); }
     .btn-camera {
       background: linear-gradient(45deg, #059669, #10b981);
       color: white; font-weight: 600; border-radius: var(--radius);
       border: none; cursor: pointer; display: flex; align-items: center; 
-      justify-content: center; gap: 6px;
+      justify-content: center; gap: 6px; padding: 10px;
     }
 
-    /* CSS UNTUK MODAL PETA */
-    #mapView {
-      flex-grow: 1; width: 100%; height: 100%;
-    }
+    /* PETA */
+    #mapView { flex-grow: 1; width: 100%; height: 100%; }
     .map-controls {
       position: absolute; bottom: 30px; left: 0; width: 100%;
-      display: flex; justify-content: space-around; align-items: center;
-      padding: 0 20px;
+      display: flex; justify-content: center; gap: 20px;
+      padding: 0 20px; z-index: 1000; pointer-events: none;
     }
-    .map-btn {
-      background: rgba(16, 185, 129, 0.2); color: var(--success);
-      border: 1px solid var(--success); padding: 8px 12px;
-      border-radius: 6px; font-size: 13px; cursor: pointer;
-      font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;
-      margin-top: 8px; width: 100%;
+    .map-controls button { pointer-events: auto; }
+    .cam-action-btn {
+      background: rgba(0,0,0,0.6); border: 2px solid white; color: white;
+      border-radius: 50%; cursor: pointer; font-size: 1.2rem; 
+      width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
     }
-    .map-btn:hover { background: var(--success); color: white; }
+    .cam-action-btn:hover { background: var(--primary); border-color: var(--primary); }
 
-    /* Fix black background on map */
-    .leaflet-container {
-      background: #ffffff !important;
+    /* Color Input */
+    input[type="color"] {
+        -webkit-appearance: none; border: none; width: 100%; height: 40px; border-radius: 8px; padding: 0; overflow: hidden;
     }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; }
   </style>
 </head>
 <body>
@@ -247,12 +205,12 @@
       </div>
 
       <div>
-        <label>Pengaturan Waktu</label>
+        <label>Waktu</label>
         <div class="toggle-row">
             <span class="toggle-label">Tampilkan Tanggal & Jam</span>
             <label class="switch">
                 <input type="checkbox" id="showDateToggle" checked>
-                <span class="slider"></span>
+                <span class="slider-toggle"></span>
             </label>
         </div>
         <input type="datetime-local" id="dtInput"/>
@@ -264,7 +222,7 @@
             <textarea id="locInput" rows="3" placeholder="Ketik lokasi atau klik tombol GPS..."></textarea>
             <div id="suggestions" class="suggestions-list"></div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
           <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
               📍 Cek GPS
           </button>
@@ -272,12 +230,46 @@
               🗺️ Cek Peta
           </button>
         </div>
-        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">*By AyaheDira</div>
       </div>
 
-      <!-- ... (bagian controls lainnya tetap sama) ... -->
+      <div>
+        <label>Tampilan Stamp</label>
+        
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px;">
+           <select id="fontSelect">
+              <option value="Roboto">Roboto (Default)</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Great Vibes">Latin / Sambung</option>
+              <option value="Share Tech Mono">Digital / Mono</option>
+           </select>
+           <input type="color" id="fontColor" value="#ffffff">
+        </div>
 
-      <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (Max 4MB)</button>
+        <div class="slider-container" style="margin-bottom: 10px;">
+            <div class="slider-header">
+                <span>Ukuran Text</span>
+                <span id="sizeValDisplay">35px</span>
+            </div>
+            <input type="range" id="sizeSlider" min="10" max="100" value="35">
+        </div>
+
+        <div class="slider-container">
+            <div class="slider-header">
+                <span>Transparansi Text</span>
+                <span id="opacityValDisplay">100%</span>
+            </div>
+            <input type="range" id="opacitySlider" min="20" max="100" value="100">
+        </div>
+      </div>
+
+      <div class="input-group-row">
+         <button id="resetViewBtn" class="main-btn btn-secondary">↺ Reset View</button>
+         <button id="clearBtn" class="main-btn btn-danger">🗑 Hapus</button>
+      </div>
+
+      <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (JPEG)</button>
+      <div style="font-size: 10px; color: #64748b; text-align: center; margin-top: 10px;">Created By AyaheDira</div>
     </aside>
 
     <section class="canvas-wrap" id="canvasContainer">
@@ -286,226 +278,323 @@
   </main>
   
   
-  <!-- Modal untuk Peta -->
   <div id="mapModal" class="camera-modal">
     <div id="mapView"></div>
-    
     <div class="map-controls">
-      <button id="closeMapBtn" class="cam-action-btn" title="Tutup">❌</button>
-      <button id="confirmMapBtn" class="cam-action-btn" title="Konfirmasi Lokasi">✅</button>
-    </div>
+      <button id="closeMapBtn" class="cam-action-btn" title="Batal" style="background: #ef4444;">❌</button>
+      </div>
   </div>
+
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
   
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  
-  <!-- Leaflet Search Plugin -->
   <script src="https://unpkg.com/leaflet-search@4.0.0/dist/leaflet-search.min.js"></script>
-  
-  <!-- Leaflet Locate Control -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.js" charset="utf-8"></script>
   
   <script>
-    // --- FITUR BARU: CEK PETA (Diperbaiki + Search + Locate + Custom Pin + Fix Black Tiles) ---
-    const mapModal = document.getElementById('mapModal');
-    const closeMapBtn = document.getElementById('closeMapBtn');
+    // --- KONFIGURASI ---
+    // DAFTAR GRATIS di https://locationiq.com/ untuk dapat API Key. 
+    // Jika kosong, pencarian alamat (reverse geocode) mungkin terbatas/gagal.
+    const LOCATIONIQ_KEY = 'pk.25381a16625807901016626639678853'; 
+
+    // --- VARIABEL GLOBAL ---
+    const fileInput = document.getElementById('fileInput');
+    const openCameraBtn = document.getElementById('openCameraBtn');
+    const cameraInput = document.getElementById('cameraInput'); // Native camera fallback
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
+
+    // Controls
+    const locInput = document.getElementById('locInput');
+    const dtInput = document.getElementById('dtInput');
+    const showDateToggle = document.getElementById('showDateToggle');
+    const gpsBtn = document.getElementById('gpsBtn');
+    const mapBtn = document.getElementById('mapBtn');
+    
+    // Style Controls
+    const fontSelect = document.getElementById('fontSelect');
+    const fontColor = document.getElementById('fontColor');
+    const sizeSlider = document.getElementById('sizeSlider');
+    const sizeValDisplay = document.getElementById('sizeValDisplay');
+    const opacitySlider = document.getElementById('opacitySlider');
+    const opacityValDisplay = document.getElementById('opacityValDisplay');
+    
+    // Actions
+    const resetViewBtn = document.getElementById('resetViewBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const downloadFinalBtn = document.getElementById('downloadFinal');
+
+    // State
+    let sourceImage = null;
+    let imgLoaded = false;
     let map = null;
     let marker = null;
-    let locateControl = null;
+    
+    // Set Default Time
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    dtInput.value = now.toISOString().slice(0,16);
 
-    async function initMap(lat = -2.5489, lng = 118.0149, zoom = 5) {
-      map = L.map('mapView', {
-        zoomSnap: 0.1,
-        zoomDelta: 0.5,
-        wheelPxPerZoomLevel: 120,
-        touchZoom: true,
-        doubleClickZoom: true,
-        scrollWheelZoom: true,
-        dragging: true,
-        zoomAnimation: true,
-        fadeAnimation: true,
-        markerZoomAnimation: true,
-        inertia: true,
-        inertiaDeceleration: 3000,
-        inertiaMaxSpeed: 1500
-      }).setView([lat, lng], zoom);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-      }).addTo(map);
-
-      // Custom Pin Icon (merah klasik dengan shadow)
-      const customPin = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-      });
-
-      // Tambahkan Search Control (mencari lokasi global)
-      map.addControl(new L.Control.Search({
-        position: 'topleft',
-        sourceData: async function(text, callResponse) {
-          try {
-            const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(text)}&format=json&limit=5`;
-            const res = await fetch(url);
-            const data = await res.json();
-            const results = data.map(item => ({
-              loc: [parseFloat(item.lat), parseFloat(item.lon)],
-              title: item.display_name
-            }));
-            callResponse(results);
-          } catch (err) {
-            callResponse([]);
-          }
-        },
-        formatData: function(json) {
-          return json;
-        },
-        marker: { icon: customPin },
-        zoom: 16,
-        minLength: 3,
-        autoType: false,
-        textPlaceholder: 'Cari lokasi...'
-      }));
-
-      // Tambahkan Locate Control (tombol GPS di peta)
-      locateControl = L.control.locate({
-        position: 'topright',
-        icon: 'fa fa-location-arrow',
-        strings: {
-          title: "Tunjukkan posisi saya"
-        },
-        locateOptions: {
-          enableHighAccuracy: true,
-          maxZoom: 18
-        },
-        showPopup: false,
-        flyTo: true,
-        keepCurrentZoomLevel: false
-      }).addTo(map);
-
-      // Event klik untuk pilih lokasi
-      map.on('click', async function(e) {
-        if (marker) map.removeLayer(marker);
-        marker = L.marker(e.latlng, { icon: customPin }).addTo(map);
-
-        try {
-          const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`;
-          const r = await fetch(url);
-          const d = await r.json();
-
-          if (d.error) throw new Error(d.error);
-
-          let addressParts = d.display_name.split(',');
-          let simpleAddress = addressParts.slice(0, 3).join(',').trim();
-
-          locInput.value = `${simpleAddress}\n(${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`;
-          draw();
-        } catch (err) {
-          console.error(err);
-          locInput.value = `Lokasi dipilih\n(${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`;
-          draw();
+    // --- LOGIKA UTAMA (DRAW) ---
+    function draw() {
+        // 1. Reset Canvas / Background
+        if (!imgLoaded || !sourceImage) {
+            canvas.width = canvasContainer.clientWidth;
+            canvas.height = canvasContainer.clientHeight;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#334155';
+            ctx.font = '20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Pilih File atau Foto untuk memulai', canvas.width/2, canvas.height/2);
+            return;
         }
-      });
+
+        // 2. Set Ukuran Canvas sesuai Gambar Asli
+        canvas.width = sourceImage.width;
+        canvas.height = sourceImage.height;
+
+        // 3. Gambar Foto
+        ctx.drawImage(sourceImage, 0, 0);
+
+        // 4. Persiapan Stamp Text
+        const fontSize = parseInt(sizeSlider.value) * (canvas.width / 1000) * 1.5; // Skala font responsif
+        const lineHeight = fontSize * 1.2;
+        const opacity = opacitySlider.value / 100;
+        
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = fontColor.value;
+        ctx.font = `bold ${fontSize}px '${fontSelect.value}', sans-serif`;
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+
+        // 5. Susun Teks (Lokasi + Waktu)
+        let lines = [];
+        
+        // Lokasi (Multi-line support)
+        if (locInput.value.trim() !== "") {
+            const words = locInput.value.split('\n');
+            words.forEach(line => lines.push(line));
+        }
+
+        // Tanggal (Jika diaktifkan)
+        if (showDateToggle.checked && dtInput.value) {
+            const d = new Date(dtInput.value);
+            // Format Indonesia sederhana
+            const dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+            lines.push(`${dateStr}, ${timeStr} WIB`);
+        }
+
+        // 6. Render Teks ke Canvas (Posisi Bawah Kiri dengan Padding)
+        const paddingX = canvas.width * 0.04;
+        const paddingY = canvas.height * 0.04;
+        let currentY = canvas.height - paddingY;
+
+        // Render dari bawah ke atas
+        for (let i = lines.length - 1; i >= 0; i--) {
+            ctx.fillText(lines[i], paddingX, currentY);
+            // Stroke (Outline) agar terbaca di background terang
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = fontSize / 15;
+            ctx.strokeText(lines[i], paddingX, currentY);
+            ctx.fillText(lines[i], paddingX, currentY);
+            
+            currentY -= lineHeight;
+        }
+        
+        ctx.globalAlpha = 1.0; // Reset
     }
 
-    mapBtn.addEventListener('click', () => {
-      mapModal.style.display = 'flex';
-      if (!map) {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(pos => {
-            initMap(pos.coords.latitude, pos.coords.longitude, 16);
-          }, () => {
-            initMap(); // Default Indonesia
-          });
-        } else {
-          initMap();
+    // --- EVENT LISTENERS ---
+
+    // Handle File Input
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    // Handle Camera Button (Mobile Native)
+    openCameraBtn.addEventListener('click', () => {
+        cameraInput.click();
+    });
+    cameraInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            sourceImage = new Image();
+            sourceImage.onload = () => {
+                imgLoaded = true;
+                draw();
+                fitCanvasToScreen();
+            };
+            sourceImage.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Handle Input Changes (Realtime Update)
+    [locInput, dtInput, showDateToggle, fontSelect, fontColor].forEach(el => {
+        el.addEventListener('input', draw);
+    });
+
+    // Handle Sliders
+    sizeSlider.addEventListener('input', () => {
+        sizeValDisplay.textContent = sizeSlider.value + 'px';
+        draw();
+    });
+    opacitySlider.addEventListener('input', () => {
+        opacityValDisplay.textContent = opacitySlider.value + '%';
+        draw();
+    });
+
+    // Tombol Aksi
+    resetViewBtn.addEventListener('click', () => {
+        // Reset slider ke default
+        sizeSlider.value = 35;
+        opacitySlider.value = 100;
+        sizeValDisplay.textContent = '35px';
+        opacityValDisplay.textContent = '100%';
+        draw();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        if(confirm("Hapus foto dan mulai ulang?")) {
+            sourceImage = null;
+            imgLoaded = false;
+            locInput.value = "";
+            fileInput.value = "";
+            draw();
         }
-      } else {
-        // Fix tampilan hitam / tiles tidak load
-        setTimeout(() => {
-          map.invalidateSize(true);
-        }, 200);
-      }
     });
 
-    closeMapBtn.addEventListener('click', () => {
-      mapModal.style.display = 'none';
+    // CSS Transform agar Canvas pas di layar HP (Visual saja)
+    function fitCanvasToScreen() {
+        // Fungsi sederhana agar canvas tidak terlihat raksasa di layar HP
+        // Ukuran asli canvas tetap resolusi penuh (untuk download)
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
+        canvas.style.objectFit = 'contain';
+    }
+    
+    // GPS Otomatis (Browser API)
+    gpsBtn.addEventListener('click', () => {
+        gpsBtn.innerHTML = '⏳ Mencari...';
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                
+                gpsBtn.innerHTML = '📍 Cek GPS';
+                
+                // Coba ambil nama jalan (Reverse Geocoding)
+                try {
+                    const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lng}&format=json`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    
+                    if(data.display_name) {
+                        // Ambil bagian alamat yang relevan saja (biar tidak kepanjangan)
+                        let addr = data.address;
+                        let text = `${addr.road || ''}, ${addr.suburb || ''}, ${addr.city || addr.county || ''}`;
+                        locInput.value = text.replace(/^, /, '').replace(/, ,/g, ',');
+                    } else {
+                        locInput.value = `Lokasi: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                    }
+                } catch(e) {
+                    locInput.value = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                }
+                draw();
+            }, (err) => {
+                alert("Gagal ambil lokasi. Pastikan GPS aktif.");
+                gpsBtn.innerHTML = '📍 Cek GPS';
+            });
+        } else {
+            alert("Browser tidak support GPS.");
+        }
     });
 
-    // --- FITUR BARU: CEK PETA (Ditingkatkan untuk zoom & pan lebih halus) ---
+    // --- SISTEM PETA (LEAFLET) ---
     const mapModal = document.getElementById('mapModal');
     const closeMapBtn = document.getElementById('closeMapBtn');
-    let map = null;
-    let marker = null;
 
     async function initMap(lat = -2.5489, lng = 118.0149, zoom = 5) {
+      if(map) return; // Jangan init ulang jika sudah ada
+
       map = L.map('mapView', {
-        zoomSnap: 0.1,          // Fractional zoom untuk smoothness
-        zoomDelta: 0.5,         // Perubahan zoom lebih kecil per gerakan
-        wheelPxPerZoomLevel: 120, // Zoom mouse wheel lebih lambat & halus
-        smoothWheelZoom: true,  // Jika tersedia di versi ini (experimental di beberapa build)
-        wheelDebounceTime: 40,  // Debounce wheel untuk smoothness
-        touchZoom: true,        // Pastikan pinch zoom aktif
-        doubleClickZoom: true,
-        scrollWheelZoom: true,
-        dragging: true,
-        zoomAnimation: true,
-        fadeAnimation: true,
-        markerZoomAnimation: true,
-        inertia: true,          // Inertia untuk pan lebih natural
-        inertiaDeceleration: 3000,
-        inertiaMaxSpeed: 1500
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        touchZoom: true
       }).setView([lat, lng], zoom);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution: '&copy; OpenStreetMap',
         maxZoom: 19
       }).addTo(map);
 
+      // Fitur Search
+      map.addControl(new L.Control.Search({
+        position: 'topleft',
+        url: 'https://nominatim.openstreetmap.org/search?format=json&q={s}',
+        jsonpParam: 'json_callback',
+        propertyName: 'display_name',
+        propertyLoc: ['lat','lon'],
+        marker: false,
+        autoCollapse: true,
+        autoType: false,
+        minLength: 2
+      }));
+
+      // Fitur Locate (GPS Button di Peta)
+      L.control.locate({
+        position: 'topright',
+        strings: { title: "Posisi Saya" },
+        locateOptions: { enableHighAccuracy: true }
+      }).addTo(map);
+
+      // Event Klik Peta
       map.on('click', async function(e) {
         if (marker) map.removeLayer(marker);
         marker = L.marker(e.latlng).addTo(map);
 
+        // Reverse Geo
         try {
-          const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`;
-          const r = await fetch(url);
-          const d = await r.json();
-
-          if (d.error) throw new Error(d.error);
-
-          let addressParts = d.display_name.split(',');
-          let simpleAddress = addressParts.slice(0, 3).join(',').trim();
-
-          locInput.value = `${simpleAddress}\n(${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`;
-          draw();
-
-          mapModal.style.display = 'none';
-        } catch (err) {
-          console.error(err);
-          alert("Gagal mendapatkan alamat: " + err.message);
+           const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`;
+           const r = await fetch(url);
+           const d = await r.json();
+           
+           let simpleAddr = d.display_name ? d.display_name.split(',').slice(0,4).join(',') : `Lat: ${e.latlng.lat.toFixed(4)}`;
+           locInput.value = simpleAddr;
+        } catch(err) {
+           locInput.value = `Pin: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
         }
+        
+        draw();
+        // Tutup modal setelah pilih (delay sedikit biar user liat marker)
+        setTimeout(() => mapModal.style.display = 'none', 400);
       });
     }
 
     mapBtn.addEventListener('click', () => {
       mapModal.style.display = 'flex';
+      
+      // Init peta jika belum, atau resize jika sudah
       if (!map) {
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(pos => {
-            initMap(pos.coords.latitude, pos.coords.longitude, 16); // Zoom lebih dekat jika GPS tersedia
-          }, () => {
-            initMap(); // Default Indonesia jika gagal
-          });
+            initMap(pos.coords.latitude, pos.coords.longitude, 15);
+          }, () => initMap());
         } else {
           initMap();
         }
       } else {
-        map.invalidateSize(); // Refresh ukuran map setelah modal dibuka
+        setTimeout(() => map.invalidateSize(), 200); // Fix peta abu-abu
       }
     });
 
@@ -513,41 +602,20 @@
       mapModal.style.display = 'none';
     });
 
-    
-
-    window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
-    sizeSlider.addEventListener('input', ()=>{ sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); });
-    opacitySlider.addEventListener('input', ()=>{ opacityValDisplay.textContent=opacitySlider.value+'%'; requestRender(); });
-    [dtInput, fontColor, fontSelect, showDateToggle].forEach(e=>e.addEventListener('input', requestRender));
-    window.addEventListener('resize', ()=>{if(sourceImage) setupHighResCanvas();});
-    
-    resetViewBtn.addEventListener('click', ()=>{ if(imgLoaded){ viewScale=1; viewX=0; viewY=0; updateTransform(); stampX=canvas.width*0.05; stampY=canvas.height*0.9; draw(); } });
-    clearBtn.addEventListener('click', ()=>{ if(imgLoaded && confirm('Hapus?')) { sourceImage=null; imgLoaded=false; isNewFile=false; fileInput.value=''; cropMode=false; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); draw(); } });
-
+    // --- DOWNLOAD ---
     downloadFinalBtn.addEventListener('click', () => {
-        if(!imgLoaded) return;
-        draw();
-        const oT = downloadFinalBtn.textContent; downloadFinalBtn.textContent = '⏳...'; downloadFinalBtn.disabled = true;
-        (function c(q) {
-            canvas.toBlob(b => {
-                if(b.size>MAX_FILE_SIZE && q>0.1) c(q-0.05);
-                else {
-                    const l = document.createElement('a'); l.download=`Stamp_${Date.now()}.jpg`; l.href=URL.createObjectURL(b); l.click();
-                    downloadFinalBtn.textContent=oT; downloadFinalBtn.disabled=false;
-                }
-            }, 'image/jpeg', q);
-        })(1.0);
+        if(!imgLoaded) return alert("Belum ada foto!");
+        
+        const link = document.createElement('a');
+        link.download = `Stamp_${Date.now()}.jpg`;
+        // Kualitas 0.9 (90%)
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
     });
 
-    draw(); 
-</script>
+    // Render awal
+    draw();
 
-
-
-
-
+  </script>
 </body>
 </html>
-
-
-
