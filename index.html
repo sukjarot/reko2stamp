@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Reko2stamp-Ultimate (2.5)</title>
+  <title>Reko2stamp-SUPER (2.7)</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon ultimate.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  
+  <!-- Tambahan untuk Leaflet (Peta) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN/RANEjZfcMRS98UlpzSzCiqTBLAJXwY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
   <style>
     :root {
@@ -200,11 +204,29 @@
       border: none; cursor: pointer; display: flex; align-items: center; 
       justify-content: center; gap: 6px;
     }
+
+    /* CSS UNTUK MODAL PETA */
+    #mapView {
+      flex-grow: 1; width: 100%; height: 100%;
+    }
+    .map-controls {
+      position: absolute; bottom: 30px; left: 0; width: 100%;
+      display: flex; justify-content: space-around; align-items: center;
+      padding: 0 20px;
+    }
+    .map-btn {
+      background: rgba(16, 185, 129, 0.2); color: var(--success);
+      border: 1px solid var(--success); padding: 8px 12px;
+      border-radius: 6px; font-size: 13px; cursor: pointer;
+      font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;
+      margin-top: 8px; width: 100%;
+    }
+    .map-btn:hover { background: var(--success); color: white; }
   </style>
 </head>
 <body>
 
-  <header>Reko2stamp-Ultimate (2.5)</header>
+  <header>Reko2stamp-SUPER (2.7)</header>
 
   <main>
     <aside class="controls">
@@ -234,9 +256,14 @@
             <textarea id="locInput" rows="3" placeholder="Ketik lokasi atau klik tombol GPS..."></textarea>
             <div id="suggestions" class="suggestions-list"></div>
         </div>
-        <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
-            📍 Cek GPS
-        </button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
+              📍 Cek GPS
+          </button>
+          <button id="mapBtn" class="map-btn" title="Pilih Lokasi di Peta">
+              🗺️ Cek Peta
+          </button>
+        </div>
         <div style="font-size: 10px; color: #64748b; margin-top: 4px;">*By AyaheDira</div>
       </div>
 
@@ -305,6 +332,16 @@
       <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
     </div>
   </div>
+  
+  <!-- Modal untuk Peta -->
+  <div id="mapModal" class="camera-modal">
+    <div id="mapView"></div>
+    
+    <div class="map-controls">
+      <button id="closeMapBtn" class="cam-action-btn" title="Tutup">❌</button>
+    </div>
+  </div>
+  
   <script>
     // --- PENDAFTARAN SERVICE WORKER (PWA) ---
     if ('serviceWorker' in navigator) {
@@ -323,6 +360,7 @@
     const showDateToggle = document.getElementById('showDateToggle');
     const locInput = document.getElementById('locInput');
     const gpsBtn = document.getElementById('gpsBtn');
+    const mapBtn = document.getElementById('mapBtn');
     const suggestionsBox = document.getElementById('suggestions');
 
     const sizeSlider = document.getElementById('sizeSlider');
@@ -956,6 +994,64 @@
     });
     
     document.addEventListener('click', e => { if(!e.target.closest('.location-wrapper')) suggestionsBox.style.display='none'; });
+
+    // --- FITUR BARU: CEK PETA ---
+    const mapModal = document.getElementById('mapModal');
+    const closeMapBtn = document.getElementById('closeMapBtn');
+    let map = null;
+    let marker = null;
+
+    async function initMap(lat = -2.5489, lng = 118.0149, zoom = 4) {
+      map = L.map('mapView').setView([lat, lng], zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      map.on('click', async function(e) {
+        if (marker) map.removeLayer(marker);
+        marker = L.marker(e.latlng).addTo(map);
+
+        try {
+          const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`;
+          const r = await fetch(url);
+          const d = await r.json();
+
+          if (d.error) throw new Error(d.error);
+
+          let addressParts = d.display_name.split(',');
+          let simpleAddress = addressParts.slice(0, 3).join(',').trim();
+
+          locInput.value = `${simpleAddress}\n(${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`;
+          draw();
+
+          mapModal.style.display = 'none';
+        } catch (err) {
+          console.error(err);
+          alert("Gagal mendapatkan alamat: " + err.message);
+        }
+      });
+    }
+
+    mapBtn.addEventListener('click', () => {
+      mapModal.style.display = 'flex';
+      if (!map) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(pos => {
+            initMap(pos.coords.latitude, pos.coords.longitude, 15);
+          }, () => {
+            initMap(); // Default jika gagal GPS
+          });
+        } else {
+          initMap(); // Default
+        }
+      } else {
+        map.invalidateSize();
+      }
+    });
+
+    closeMapBtn.addEventListener('click', () => {
+      mapModal.style.display = 'none';
+    });
 
     window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
     sizeSlider.addEventListener('input', ()=>{ sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); });
