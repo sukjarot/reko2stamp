@@ -3,17 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Reko2stamp-Super (2.7)</title>
+  <title>Reko2stamp-Ultimate (2.5)</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" href="icon.png">
-  
+  <link rel="icon" type="image/png" href="icon ultimate.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN/RANEjZfcMRS98UlpzSzCiqTBLAJXwY=" crossorigin=""/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-search@4.0.0/dist/leaflet-search.min.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.css" />
   
   <style>
     :root {
@@ -36,22 +31,26 @@
     }
 
     header { 
-      height: 50px; 
+      height: 50px; /* Sedikit dipertinggi agar cahaya neon leluasa */
       background: var(--bg-panel); 
       border-bottom: 1px solid #334155;
       display: flex; align-items: center; justify-content: center;
       z-index: 50;
       
-      font-family: 'Montserrat', sans-serif; 
-      font-weight: 700; 
-      font-size: 20px;  
+      /* --- EFEK NEON FUTURISTIK (VERSI SANS SERIF) --- */
+      font-family: 'Montserrat', sans-serif; /* Menggunakan font sans-serif tebal */
+      font-weight: 700; /* Wajib tebal (Bold) agar pendaran neon terlihat jelas */
+      font-size: 24px;  /* Sedikit disesuaikan agar proporsional */
       color: #e0f2fe;   
-      letter-spacing: 1px; 
+      letter-spacing: 1.5px; /* Jarak antar huruf diperlebar agar terlihat mewah */
       text-transform: capitalize;
       
+      /* Racikan Bayangan Neon Biru (Cyan) */
       text-shadow: 
-          0 0 5px  rgba(6, 182, 212, 0.8),   
-          0 0 10px rgba(6, 182, 212, 0.6);  
+          0 0 5px  rgba(6, 182, 212, 0.8),   /* Glow tajam dekat */
+          0 0 10px rgba(6, 182, 212, 0.6),   /* Glow menyebar */
+          0 0 20px rgba(59, 130, 246, 0.4),  /* Aura biru luar */
+          0 0 40px rgba(59, 130, 246, 0.2);  /* Atmosfer redup */
     }
 
     main { display: flex; flex-direction: row; height: calc(100vh - 50px); }
@@ -63,7 +62,7 @@
       background-image: radial-gradient(#334155 1px, transparent 1px);
       background-size: 20px 20px; order: 2; 
     }
-    canvas { box-shadow: 0 0 40px rgba(0,0,0,0.5); max-width: 100%; max-height: 100%; }
+    canvas { box-shadow: 0 0 40px rgba(0,0,0,0.5); transform-origin: 0 0; }
 
     .controls { 
       width: 360px; background: var(--bg-panel); padding: 20px; 
@@ -75,14 +74,14 @@
     label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; display: block; font-weight: 500; text-transform: uppercase; }
 
     input[type="text"], input[type="datetime-local"], select, textarea {
-      width: 100%; padding: 10px; background: var(--bg-input); 
+      width: 100%; padding: 12px; background: var(--bg-input); 
       border: 1px solid transparent; border-radius: var(--radius); 
       color: white; font-family: inherit; outline: none; font-size: 14px;
     }
-    textarea { resize: vertical; min-height: 70px; line-height: 1.4; white-space: pre-wrap; }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
     input:focus, textarea:focus { border-color: var(--primary); background: #475569; }
 
-    /* LOCATION & BUTTONS */
+    /* LOCATION AUTOCOMPLETE STYLE */
     .location-wrapper { position: relative; }
     .suggestions-list {
       position: absolute; top: 100%; left: 0; right: 0;
@@ -91,108 +90,121 @@
       max-height: 200px; overflow-y: auto;
       display: none; box-shadow: 0 10px 15px rgba(0,0,0,0.5);
     }
-    .gps-btn, .map-btn {
-      background: rgba(16, 185, 129, 0.15); color: var(--success);
-      border: 1px solid var(--success); padding: 8px;
+    .suggestion-item {
+      padding: 10px; font-size: 13px; border-bottom: 1px solid #334155;
+      cursor: pointer; color: #e2e8f0;
+    }
+    .suggestion-item:hover { background: var(--primary); color: white; }
+    .gps-btn {
+      background: rgba(16, 185, 129, 0.2); color: var(--success);
+      border: 1px solid var(--success); padding: 8px 12px;
       border-radius: 6px; font-size: 13px; cursor: pointer;
       font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;
-      width: 100%; transition: all 0.2s;
+      margin-top: 8px; width: 100%;
     }
-    .gps-btn:hover, .map-btn:hover { background: var(--success); color: white; }
+    .gps-btn:hover { background: var(--success); color: white; }
 
     /* TOGGLE SWITCH */
     .toggle-row {
         display: flex; justify-content: space-between; align-items: center;
         background: var(--bg-input); padding: 8px 12px; border-radius: var(--radius);
-        margin-bottom: 5px;
+        margin-bottom: 8px;
     }
     .toggle-label { margin: 0; font-size: 0.85rem; color: white; text-transform: none; }
     .switch { position: relative; display: inline-block; width: 42px; height: 24px; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider-toggle {
+    .slider {
       position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
       background-color: #64748b; transition: .4s; border-radius: 24px;
     }
-    .slider-toggle:before {
+    .slider:before {
       position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
       background-color: white; transition: .4s; border-radius: 50%;
     }
-    input:checked + .slider-toggle { background-color: var(--primary); }
-    input:checked + .slider-toggle:before { transform: translateX(18px); }
+    input:checked + .slider { background-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(18px); }
 
-    /* RANGE SLIDERS */
+    /* SLIDERS */
     .slider-container { background: var(--bg-input); padding: 10px; border-radius: var(--radius); }
-    .slider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #cbd5e1; }
-    input[type=range] { width: 100%; height: 4px; background: #1e293b; border-radius: 2px; -webkit-appearance: none; cursor: pointer;}
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary); border-radius: 50%; border: 2px solid white; margin-top: -7px;
+    .slider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem; }
+    .slider-group { display: flex; align-items: center; gap: 8px; }
+    .btn-adjust {
+      width: 30px; height: 30px; background: #475569; border: none; border-radius: 50%;
+      color: white; cursor: pointer; display: grid; place-items: center; font-weight: bold;
     }
-    input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #475569; border-radius: 2px; }
+    input[type=range] { flex-grow: 1; height: 4px; background: #1e293b; border-radius: 2px; -webkit-appearance: none; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary); border-radius: 50%; border: 2px solid white; cursor: pointer;
+    }
 
     /* BUTTONS */
-    .main-btn {
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button.main-btn {
       padding: 14px; border: none; border-radius: var(--radius); font-weight: 600;
-      cursor: pointer; font-size: 0.9rem; color: white; transition: 0.2s; width: 100%;
+      cursor: pointer; font-size: 0.9rem; color: white; transition: 0.2s;
     }
+    button.main-btn:active { transform: scale(0.96); }
     .btn-secondary { background: #334155; }
     .btn-primary { background: var(--primary); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
     .btn-danger { background: var(--danger); }
     .file-btn {
       background: linear-gradient(45deg, #3b82f6, #6366f1);
-      padding: 10px; border-radius: var(--radius); text-align: center; cursor: pointer; font-weight: 600;
-      display: block; width: 100%; font-size: 14px;
+      padding: 12px; border-radius: var(--radius); text-align: center; cursor: pointer; font-weight: 600;
+      display: block; width: 100%;
     }
 
     @media (max-width: 768px) {
       main { flex-direction: column; }
-      .canvas-wrap { order: 1; height: 40vh; width: 100%; border-bottom: 1px solid #334155; }
+      .canvas-wrap { order: 1; height: 45vh; width: 100%; border-bottom: 1px solid #334155; }
       .controls { 
-        order: 2; height: 60vh; width: 100%; border-right: none; 
+        order: 2; height: 55vh; width: 100%; border-right: none; 
         border-top: 1px solid #334155; border-radius: 20px 20px 0 0;
-        padding-bottom: 80px; 
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.4); padding-bottom: 80px; 
       }
     }
 
-    /* KAMERA & MODAL */
-    .input-group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    /* CSS KAMERA */
+    .input-group-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+    }
     .camera-modal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; z-index: 9999;
       display: none; flex-direction: column;
     }
+    .camera-view {
+      flex-grow: 1; width: 100%; height: 100%; object-fit: cover;
+      background: #000; transition: transform 0.3s ease;
+    }
+    .camera-controls {
+      position: absolute; bottom: 30px; left: 0; width: 100%;
+      display: flex; justify-content: space-around; align-items: center;
+      padding: 0 20px;
+    }
+    .shutter-btn {
+      width: 70px; height: 70px; border-radius: 50%;
+      background: white; border: 4px solid rgba(255,255,255,0.3);
+      cursor: pointer; transition: 0.2s;
+    }
+    .shutter-btn:active { transform: scale(0.9); background: #eee; }
+    .cam-action-btn {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      padding: 12px; border-radius: 50%; cursor: pointer;
+      font-size: 1.2rem; width: 50px; height: 50px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cam-action-btn:hover { background: rgba(255,255,255,0.4); }
     .btn-camera {
       background: linear-gradient(45deg, #059669, #10b981);
       color: white; font-weight: 600; border-radius: var(--radius);
       border: none; cursor: pointer; display: flex; align-items: center; 
-      justify-content: center; gap: 6px; padding: 10px;
+      justify-content: center; gap: 6px;
     }
-
-    /* PETA */
-    #mapView { flex-grow: 1; width: 100%; height: 100%; }
-    .map-controls {
-      position: absolute; bottom: 30px; left: 0; width: 100%;
-      display: flex; justify-content: center; gap: 20px;
-      padding: 0 20px; z-index: 1000; pointer-events: none;
-    }
-    .map-controls button { pointer-events: auto; }
-    .cam-action-btn {
-      background: rgba(0,0,0,0.6); border: 2px solid white; color: white;
-      border-radius: 50%; cursor: pointer; font-size: 1.2rem; 
-      width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
-    }
-    .cam-action-btn:hover { background: var(--primary); border-color: var(--primary); }
-
-    /* Color Input */
-    input[type="color"] {
-        -webkit-appearance: none; border: none; width: 100%; height: 40px; border-radius: 8px; padding: 0; overflow: hidden;
-    }
-    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-    input[type="color"]::-webkit-color-swatch { border: none; }
   </style>
 </head>
 <body>
 
-  <header>Reko2stamp-SUPER (2.7)</header>
+  <header>Reko2stamp-Ultimate (2.5)</header>
 
   <main>
     <aside class="controls">
@@ -205,12 +217,12 @@
       </div>
 
       <div>
-        <label>Waktu</label>
+        <label>Pengaturan Waktu</label>
         <div class="toggle-row">
             <span class="toggle-label">Tampilkan Tanggal & Jam</span>
             <label class="switch">
                 <input type="checkbox" id="showDateToggle" checked>
-                <span class="slider-toggle"></span>
+                <span class="slider"></span>
             </label>
         </div>
         <input type="datetime-local" id="dtInput"/>
@@ -222,54 +234,60 @@
             <textarea id="locInput" rows="3" placeholder="Ketik lokasi atau klik tombol GPS..."></textarea>
             <div id="suggestions" class="suggestions-list"></div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
-          <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
-              📍 Cek GPS
-          </button>
-          <button id="mapBtn" class="map-btn" title="Pilih Lokasi di Peta">
-              🗺️ Cek Peta
-          </button>
+        <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
+            📍 Cek GPS
+        </button>
+        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">*By AyaheDira</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+        <div>
+          <label>Font</label>
+          <select id="fontSelect">
+            <option value="Roboto">Roboto</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Oswald">Oswald Bold</option>
+            <option value="Share Tech Mono">Digital</option>
+            <option value="Great Vibes">Signature</option>
+          </select>
+        </div>
+        <div>
+           <label>Warna</label>
+           <input type="color" id="fontColor" value="#ffffff" style="height: 44px; padding: 2px;">
         </div>
       </div>
 
       <div>
-        <label>Tampilan Stamp</label>
-        
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px;">
-           <select id="fontSelect">
-              <option value="Roboto">Roboto (Default)</option>
-              <option value="Montserrat">Montserrat</option>
-              <option value="Oswald">Oswald</option>
-              <option value="Great Vibes">Latin / Sambung</option>
-              <option value="Share Tech Mono">Digital / Mono</option>
-           </select>
-           <input type="color" id="fontColor" value="#ffffff">
-        </div>
-
-        <div class="slider-container" style="margin-bottom: 10px;">
-            <div class="slider-header">
-                <span>Ukuran Text</span>
-                <span id="sizeValDisplay">35px</span>
-            </div>
-            <input type="range" id="sizeSlider" min="10" max="100" value="35">
-        </div>
-
+        <label>Ukuran Teks</label>
         <div class="slider-container">
-            <div class="slider-header">
-                <span>Transparansi Text</span>
-                <span id="opacityValDisplay">100%</span>
+            <div class="slider-header"><span>Size</span><span id="sizeVal">80px</span></div>
+            <div class="slider-group">
+                <button class="btn-adjust" onclick="adjustSize(-5)">-</button>
+                <input type="range" id="sizeSlider" min="20" max="300" value="80" step="5">
+                <button class="btn-adjust" onclick="adjustSize(5)">+</button>
             </div>
-            <input type="range" id="opacitySlider" min="20" max="100" value="100">
         </div>
       </div>
 
-      <div class="input-group-row">
-         <button id="resetViewBtn" class="main-btn btn-secondary">↺ Reset View</button>
-         <button id="clearBtn" class="main-btn btn-danger">🗑 Hapus</button>
+      <div>
+        <label>Transparansi</label>
+        <div class="slider-container">
+            <div class="slider-header"><span>Opacity</span><span id="opacityVal">90%</span></div>
+            <div class="slider-group">
+                <input type="range" id="opacitySlider" min="0" max="100" step="5" value="90">
+            </div>
+        </div>
       </div>
 
-      <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (JPEG)</button>
-      <div style="font-size: 10px; color: #64748b; text-align: center; margin-top: 10px;">Created By AyaheDira</div>
+      <div class="action-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <button id="resetView" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">↺ Reset</button>
+        <button id="rotateBtn" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">⤵ Putar</button>
+        <button id="toggleCrop" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">✂ Potong</button>
+      </div>
+
+      <button id="clearBtn" class="main-btn btn-danger" style="margin-top: 10px; margin-bottom: 10px;">🗑 Hapus Foto</button>
+
+      <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (Max 4MB)</button>
     </aside>
 
     <section class="canvas-wrap" id="canvasContainer">
@@ -277,345 +295,698 @@
     </section>
   </main>
   
-  
-  <div id="mapModal" class="camera-modal">
-    <div id="mapView"></div>
-    <div class="map-controls">
-      <button id="closeMapBtn" class="cam-action-btn" title="Batal" style="background: #ef4444;">❌</button>
-      </div>
+  <div id="cameraModal" class="camera-modal">
+    <video id="cameraVideo" class="camera-view" autoplay playsinline></video>
+    
+    <div class="camera-controls">
+      <button id="closeCamBtn" class="cam-action-btn" title="Tutup">❌</button>
+      <button id="rotateCamBtn" class="cam-action-btn" title="Putar Kamera">⤵️</button>
+      <button id="shutterBtn" class="shutter-btn" title="Ambil Foto"></button>
+      <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
+    </div>
   </div>
-
-  <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
-  
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="https://unpkg.com/leaflet-search@4.0.0/dist/leaflet-search.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.85.1/dist/L.Control.Locate.min.js" charset="utf-8"></script>
-  
   <script>
-    // --- KONFIGURASI ---
-    // DAFTAR GRATIS di https://locationiq.com/ untuk dapat API Key. 
-    // Jika kosong, pencarian alamat (reverse geocode) mungkin terbatas/gagal.
-    const LOCATIONIQ_KEY = 'pk.25381a16625807901016626639678853'; 
-
-    // --- VARIABEL GLOBAL ---
+    // --- PENDAFTARAN SERVICE WORKER (PWA) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker terdaftar!', reg.scope))
+                .catch(err => console.log('Gagal daftar Service Worker:', err));
+        });
+    }
+    
+    // --- 1. INISIALISASI VARIABEL GLOBAL ---
+    // --- MASUKKAN TOKEN DARI LOCATIONIQ DI SINI ---
+    const LOCATIONIQ_KEY = 'pk.9415d0e1f42e8b4c9b6d9be7be2f5108';
     const fileInput = document.getElementById('fileInput');
-    const openCameraBtn = document.getElementById('openCameraBtn');
-    const cameraInput = document.getElementById('cameraInput'); // Native camera fallback
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const canvasContainer = document.getElementById('canvasContainer');
-
-    // Controls
-    const locInput = document.getElementById('locInput');
     const dtInput = document.getElementById('dtInput');
     const showDateToggle = document.getElementById('showDateToggle');
+    const locInput = document.getElementById('locInput');
     const gpsBtn = document.getElementById('gpsBtn');
-    const mapBtn = document.getElementById('mapBtn');
-    
-    // Style Controls
-    const fontSelect = document.getElementById('fontSelect');
-    const fontColor = document.getElementById('fontColor');
+    const suggestionsBox = document.getElementById('suggestions');
+
     const sizeSlider = document.getElementById('sizeSlider');
-    const sizeValDisplay = document.getElementById('sizeValDisplay');
+    const sizeValDisplay = document.getElementById('sizeVal');
     const opacitySlider = document.getElementById('opacitySlider');
-    const opacityValDisplay = document.getElementById('opacityValDisplay');
+    const opacityValDisplay = document.getElementById('opacityVal');
+    const fontColor = document.getElementById('fontColor');
+    const fontSelect = document.getElementById('fontSelect');
     
-    // Actions
-    const resetViewBtn = document.getElementById('resetViewBtn');
+    const resetViewBtn = document.getElementById('resetView');
+    const toggleCropBtn = document.getElementById('toggleCrop');
     const clearBtn = document.getElementById('clearBtn');
+    const rotateBtn = document.getElementById('rotateBtn');
     const downloadFinalBtn = document.getElementById('downloadFinal');
+    const canvasContainer = document.getElementById('canvasContainer');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    // State
-    let sourceImage = null;
+    // SISTEM BARU
+    let sourceImage = null; 
+    let isUsingCanvasSource = false; 
     let imgLoaded = false;
-    let map = null;
-    let marker = null;
+    let isNewFile = false;
+
+    // States Touch/UI
+    let viewScale = 1; let viewX = 0; let viewY = 0;
     
-    // Set Default Time
+    // Stamp State
+    let stampX = 50, stampY = 100;
+    let draggingStamp = false; 
+    
+    // Crop State
+    let cropMode = false; 
+    let cropRect = null; 
+    let cropAction = null; 
+    let dragStartPos = {x:0, y:0};
+    let initialCropRect = null; 
+
+    // Pinch Zoom State
+    let initialPinchDist = 0; let initialScale = 1; let lastPanX = 0; let lastPanY = 0;
+    let isDrawing = false; 
+
+    const MAX_DIMENSION = 4096;
+    const MAX_FILE_SIZE = 4 * 1024 * 1024;
+    
+    // --- SETTING UKURAN HANDLE (UPDATED FOR MOBILE) ---
+    const VISUAL_HANDLE_SIZE = 30; // Ukuran kotak biru yang terlihat (px)
+    const TOUCH_HANDLE_SIZE = 80;  // Area sentuh invisible (Sangat besar agar mudah kena jempol)
+
+    // Init Date
     const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    dtInput.value = now.toISOString().slice(0,16);
+    const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    dtInput.value = localIso;
 
-    // --- LOGIKA UTAMA (DRAW) ---
-    function draw() {
-        // 1. Reset Canvas / Background
-        if (!imgLoaded || !sourceImage) {
-            canvas.width = canvasContainer.clientWidth;
-            canvas.height = canvasContainer.clientHeight;
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#334155';
-            ctx.font = '20px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Pilih File atau Foto untuk memulai', canvas.width/2, canvas.height/2);
-            return;
-        }
-
-        // 2. Set Ukuran Canvas sesuai Gambar Asli
-        canvas.width = sourceImage.width;
-        canvas.height = sourceImage.height;
-
-        // 3. Gambar Foto
-        ctx.drawImage(sourceImage, 0, 0);
-
-        // 4. Persiapan Stamp Text
-        const fontSize = parseInt(sizeSlider.value) * (canvas.width / 1000) * 1.5; // Skala font responsif
-        const lineHeight = fontSize * 1.2;
-        const opacity = opacitySlider.value / 100;
-        
-        ctx.globalAlpha = opacity;
-        ctx.fillStyle = fontColor.value;
-        ctx.font = `bold ${fontSize}px '${fontSelect.value}', sans-serif`;
-        ctx.shadowColor = "rgba(0,0,0,0.8)";
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
-
-        // 5. Susun Teks (Lokasi + Waktu)
-        let lines = [];
-        
-        // Lokasi (Multi-line support)
-        if (locInput.value.trim() !== "") {
-            const words = locInput.value.split('\n');
-            words.forEach(line => lines.push(line));
-        }
-
-        // Tanggal (Jika diaktifkan)
-        if (showDateToggle.checked && dtInput.value) {
-            const d = new Date(dtInput.value);
-            // Format Indonesia sederhana
-            const dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
-            lines.push(`${dateStr}, ${timeStr} WIB`);
-        }
-
-        // 6. Render Teks ke Canvas (Posisi Bawah Kiri dengan Padding)
-        const paddingX = canvas.width * 0.04;
-        const paddingY = canvas.height * 0.04;
-        let currentY = canvas.height - paddingY;
-
-        // Render dari bawah ke atas
-        for (let i = lines.length - 1; i >= 0; i--) {
-            ctx.fillText(lines[i], paddingX, currentY);
-            // Stroke (Outline) agar terbaca di background terang
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = fontSize / 15;
-            ctx.strokeText(lines[i], paddingX, currentY);
-            ctx.fillText(lines[i], paddingX, currentY);
-            
-            currentY -= lineHeight;
-        }
-        
-        ctx.globalAlpha = 1.0; // Reset
+    // --- Pendaftaran Service Worker (Agar Offline Jalan) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Gagal', err));
+        });
     }
+
+    // --- 2. HELPER RENDERING ---
+    function requestRender() {
+        if (!isDrawing) {
+            isDrawing = true;
+            requestAnimationFrame(() => {
+                draw();
+                isDrawing = false;
+            });
+        }
+    }
+
+    function getSourceWidth() {
+        if (!sourceImage) return 0;
+        return isUsingCanvasSource ? sourceImage.width : sourceImage.naturalWidth;
+    }
+
+    function getSourceHeight() {
+        if (!sourceImage) return 0;
+        return isUsingCanvasSource ? sourceImage.height : sourceImage.naturalHeight;
+    }
+
+    // --- 3. LOGIKA UTAMA (DRAW & CANVAS) ---
+    function updateTransform() { 
+        canvas.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale})`; 
+    }
+
+    function draw() {
+        if (!imgLoaded || !sourceImage) { 
+            canvas.width = 300; canvas.height = 300;
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,300,300);
+            ctx.fillStyle = '#64748b'; ctx.font = '16px Roboto'; ctx.textAlign = 'center';
+            ctx.fillText('Pilih Foto Dulu', 150, 150);
+            return; 
+        }
+        
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+        // Render Text / Stamp
+        const text = buildStampText();
+        const fSize = parseInt(sizeSlider.value);
+        const alpha = parseInt(opacitySlider.value) / 100;
+        
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = `bold ${fSize}px "${fontSelect.value}"`; 
+        ctx.fillStyle = fontColor.value || '#fff';
+        ctx.textAlign = 'left';
+        
+        const shadowSize = Math.max(2, fSize / 15);
+        ctx.shadowColor = `rgba(0,0,0,${alpha})`;
+        ctx.shadowBlur = shadowSize; ctx.shadowOffsetX = shadowSize/2; ctx.shadowOffsetY = shadowSize/2;
+
+        wrapText(text, stampX, stampY, canvas.width - (stampX + 20), fSize * 1.25);
+        ctx.restore();
+
+        // --- RENDER CROP UI ---
+        if (cropMode && cropRect) {
+            ctx.save();
+            
+            // Dimming Area Luar
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.rect(0, 0, canvas.width, canvas.height);
+            ctx.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h); 
+            ctx.clip("evenodd"); 
+            ctx.fill();
+
+            // Garis Batas
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4 / viewScale; ctx.setLineDash([]);
+            ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 / viewScale; ctx.setLineDash([12, 6]);
+            ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+
+            // HANDLES (Visual Box)
+            ctx.setLineDash([]);
+            // Kita pakai VISUAL_HANDLE_SIZE di sini agar tampilan tetap rapi (tidak terlalu besar)
+            const vHandle = VISUAL_HANDLE_SIZE / viewScale; 
+            const halfH = vHandle / 2;
+            
+            ctx.fillStyle = '#3b82f6'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 / viewScale;
+
+            const drawH = (cx, cy) => {
+                ctx.beginPath();
+                ctx.rect(cx - halfH, cy - halfH, vHandle, vHandle);
+                ctx.fill(); ctx.stroke();
+            };
+
+            const l = cropRect.x; const cX = cropRect.x + cropRect.w / 2; const r = cropRect.x + cropRect.w;
+            const t = cropRect.y; const cY = cropRect.y + cropRect.h / 2; const b = cropRect.y + cropRect.h;
+
+            drawH(l, t); drawH(cX, t); drawH(r, t);
+            drawH(r, cY); drawH(r, b); drawH(cX, b);
+            drawH(l, b); drawH(l, cY);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1 / viewScale; ctx.beginPath();
+            ctx.moveTo(cropRect.x + cropRect.w/3, cropRect.y); ctx.lineTo(cropRect.x + cropRect.w/3, cropRect.y + cropRect.h);
+            ctx.moveTo(cropRect.x + 2*cropRect.w/3, cropRect.y); ctx.lineTo(cropRect.x + 2*cropRect.w/3, cropRect.y + cropRect.h);
+            ctx.moveTo(cropRect.x, cropRect.y + cropRect.h/3); ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + cropRect.h/3);
+            ctx.moveTo(cropRect.x, cropRect.y + 2*cropRect.h/3); ctx.lineTo(cropRect.x + cropRect.w, cropRect.y + 2*cropRect.h/3);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+    }
+
+    function buildStampText() {
+        let text = '';
+        if (showDateToggle.checked) {
+            const dt = new Date(dtInput.value);
+            if(!isNaN(dt)) {
+                const pad = n => n.toString().padStart(2, '0');
+                text += `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+            }
+        }
+        const loc = locInput.value.trim();
+        if (loc) { if (text) text += '\n'; text += loc; }
+        return text;
+    }
+
+    function wrapText(text, x, y, maxWidth, lineHeight) {
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) { ctx.fillText(lines[i], x, y + (i * lineHeight)); }
+    }
+
+    function setupHighResCanvas() {
+        if (!sourceImage) return;
+        let w = getSourceWidth();
+        let h = getSourceHeight();
+        if (w > MAX_DIMENSION || h > MAX_DIMENSION) {
+            const ratio = w / h;
+            if (w > h) { w = MAX_DIMENSION; h = Math.round(w / ratio); } 
+            else { h = MAX_DIMENSION; w = Math.round(h * ratio); }
+        }
+        canvas.width = w; canvas.height = h;
+
+        const padding = 20; 
+        const isMobile = window.innerWidth < 768;
+        const screenW = isMobile ? (window.innerWidth - padding) : (window.innerWidth - 380);
+        const screenH = isMobile ? (window.innerHeight * 0.40) : (window.innerHeight - 80);
+        const ratio = w / h;
+        let cssW = screenW; let cssH = cssW / ratio;
+        if (cssH > screenH) { cssH = screenH; cssW = cssH * ratio; }
+        canvas.style.width = `${cssW}px`; canvas.style.height = `${cssH}px`;
+        
+        if(isNewFile) { 
+            viewScale = 1; viewX = 0; viewY = 0; updateTransform(); 
+            stampX = canvas.width * 0.05; 
+            stampY = canvas.height - (canvas.height * 0.1); 
+            const autoSize = Math.max(40, Math.round(canvas.width * 0.04));
+            sizeSlider.value = autoSize; 
+            sizeValDisplay.textContent = autoSize + 'px';
+            isNewFile = false;
+        }
+        draw();
+    }
+
+    // --- 4. INTERAKSI TOUCH (UPDATED HIT REGION) ---
+    
+    function getHitRegion(x, y) {
+        if (!cropRect) return null;
+        
+        // PENGATURAN TOLERANSI SENTUH (SANGAT PENTING UNTUK HP)
+        // Kita pakai TOUCH_HANDLE_SIZE agar area deteksinya luas
+        const hitSize = (TOUCH_HANDLE_SIZE / viewScale); 
+        const halfHit = hitSize / 2;
+        
+        const l = cropRect.x;
+        const cX = cropRect.x + cropRect.w / 2;
+        const r = cropRect.x + cropRect.w;
+        const t = cropRect.y;
+        const cY = cropRect.y + cropRect.h / 2;
+        const b = cropRect.y + cropRect.h;
+
+        // Cek apakah koordinat (x,y) masuk dalam kotak imajiner handle
+        const check = (tx, ty) => {
+            return (x >= tx - halfHit && x <= tx + halfHit && y >= ty - halfHit && y <= ty + halfHit);
+        };
+
+        if (check(l, t)) return 'nw';
+        if (check(cX, t)) return 'n';
+        if (check(r, t)) return 'ne';
+        
+        if (check(r, cY)) return 'e';
+        if (check(r, b)) return 'se';
+        
+        if (check(cX, b)) return 's';
+        if (check(l, b)) return 'sw';
+        if (check(l, cY)) return 'w';
+
+        // Cek Move (Badan)
+        if (x > l && x < r && y > t && y < b) return 'move';
+
+        return null;
+    }
+
+    function getDist(touches) { return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY); }
+    function getPos(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect(); 
+        const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+
+    // --- FUNGSI BARU: HIT DETECTION LEBIH BAIK UNTUK STAMP TEKS ---
+  function getTextBoundingBox() {
+      if (!imgLoaded || !sourceImage) return null;
+
+      const text = buildStampText();
+      if (!text.trim()) return null;
+
+      const fSize = parseInt(sizeSlider.value);
+      const lines = text.split('\n');
+      const lineHeight = fSize * 1.25;
+
+      // Sementara set font untuk measureText
+      ctx.font = `bold ${fSize}px "${fontSelect.value}"`;
+
+      let maxWidth = 0;
+      lines.forEach(line => {
+          const metrics = ctx.measureText(line);
+          if (metrics.width > maxWidth) maxWidth = metrics.width;
+      });
+
+      const textWidth = maxWidth;
+      const textHeight = lines.length * lineHeight;
+
+      // Bounding box (actualBounds tanpa shadow)
+      return {
+          x: stampX,
+          y: stampY - fSize, // karena fillText mulai dari baseline atas
+          w: textWidth,
+          h: textHeight
+      };
+  }
+
+  function isPointInTextArea(posX, posY) {
+      const bbox = getTextBoundingBox();
+      if (!bbox) return false;
+
+      // Padding besar untuk kemudahan sentuh (40px di semua sisi)
+      const padding = 40;
+
+      return (
+          posX >= bbox.x - padding &&
+          posX <= bbox.x + bbox.w + padding &&
+          posY >= bbox.y - padding &&
+          posY <= bbox.y + bbox.h + padding
+      );
+  }
+
+  // --- PERBAIKAN HANDLE START (drag stamp lebih leluasa) ---
+  function handleStart(clientX, clientY) {
+      const pos = getPos(clientX, clientY);
+      dragStartPos = pos;
+
+      if (cropMode) {
+          const hit = getHitRegion(pos.x, pos.y);
+          if (hit) {
+              cropAction = hit;
+              initialCropRect = { ...cropRect };
+          } else {
+              cropAction = 'create';
+              cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
+          }
+      } else {
+          // PERBAIKAN: Deteksi drag stamp berdasarkan bounding box teks + padding
+          if (isPointInTextArea(pos.x, pos.y)) {
+              draggingStamp = true;
+              // Offset agar posisi cursor tetap konsisten saat drag
+              const bbox = getTextBoundingBox();
+              if (bbox) {
+                  dragStartPos.offsetX = pos.x - stampX;
+                  dragStartPos.offsetY = pos.y - (stampY - parseInt(sizeSlider.value));
+              }
+          }
+      }
+  }
+
+  function handleMove(clientX, clientY) {
+      const pos = getPos(clientX, clientY);
+
+      if (cropMode && cropAction) {
+          if (cropAction === 'create') {
+              cropRect.w = pos.x - dragStartPos.x;
+              cropRect.h = pos.y - dragStartPos.y;
+          } 
+          else if (cropAction === 'move') {
+              const dx = pos.x - dragStartPos.x;
+              const dy = pos.y - dragStartPos.y;
+              cropRect.x = initialCropRect.x + dx;
+              cropRect.y = initialCropRect.y + dy;
+          } 
+          else {
+              const dx = pos.x - dragStartPos.x;
+              const dy = pos.y - dragStartPos.y;
+              const i = initialCropRect;
+
+              if (cropAction.includes('n')) { cropRect.y = i.y + dy; cropRect.h = i.h - dy; }
+              if (cropAction.includes('s')) { cropRect.h = i.h + dy; }
+              if (cropAction.includes('w')) { cropRect.x = i.x + dx; cropRect.w = i.w - dx; }
+              if (cropAction.includes('e')) { cropRect.w = i.w + dx; }
+          }
+          requestRender();
+      } 
+      else if (draggingStamp) {
+          // PERBAIKAN: Gunakan offset agar grip tidak "snap" ke kiri
+          if (dragStartPos.offsetX !== undefined) {
+              stampX = pos.x - dragStartPos.offsetX;
+              stampY = pos.y - dragStartPos.offsetY + parseInt(sizeSlider.value); // kompensasi baseline
+          } else {
+              stampX = pos.x;
+              stampY = pos.y;
+          }
+          requestRender();
+      }
+  }
+
+  // handleEnd tetap sama
+  function handleEnd() {
+      if (cropMode && cropRect) {
+          if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
+          if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
+      }
+      cropAction = null; 
+      draggingStamp = false; 
+      initialCropRect = null;
+      // Reset offset
+      delete dragStartPos.offsetX;
+      delete dragStartPos.offsetY;
+  }
 
     // --- EVENT LISTENERS ---
-
-    // Handle File Input
-    fileInput.addEventListener('change', handleFileSelect);
-    
-    // Handle Camera Button (Mobile Native)
-    openCameraBtn.addEventListener('click', () => {
-        cameraInput.click();
-    });
-    cameraInput.addEventListener('change', handleFileSelect);
-
-    function handleFileSelect(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            sourceImage = new Image();
-            sourceImage.onload = () => {
-                imgLoaded = true;
-                draw();
-                fitCanvasToScreen();
-            };
-            sourceImage.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    // Handle Input Changes (Realtime Update)
-    [locInput, dtInput, showDateToggle, fontSelect, fontColor].forEach(el => {
-        el.addEventListener('input', draw);
-    });
-
-    // Handle Sliders
-    sizeSlider.addEventListener('input', () => {
-        sizeValDisplay.textContent = sizeSlider.value + 'px';
-        draw();
-    });
-    opacitySlider.addEventListener('input', () => {
-        opacityValDisplay.textContent = opacitySlider.value + '%';
-        draw();
-    });
-
-    // Tombol Aksi
-    resetViewBtn.addEventListener('click', () => {
-        // Reset slider ke default
-        sizeSlider.value = 35;
-        opacitySlider.value = 100;
-        sizeValDisplay.textContent = '35px';
-        opacityValDisplay.textContent = '100%';
-        draw();
-    });
-
-    clearBtn.addEventListener('click', () => {
-        if(confirm("Hapus foto dan mulai ulang?")) {
-            sourceImage = null;
-            imgLoaded = false;
-            locInput.value = "";
-            fileInput.value = "";
-            draw();
+    canvasContainer.addEventListener('touchstart', (e) => {
+        if(!imgLoaded) return;
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            initialPinchDist = getDist(e.touches); initialScale = viewScale;
+            lastPanX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            lastPanY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        } else if (e.touches.length === 1) {
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
         }
-    });
+    }, {passive: false});
 
-    // CSS Transform agar Canvas pas di layar HP (Visual saja)
-    function fitCanvasToScreen() {
-        // Fungsi sederhana agar canvas tidak terlihat raksasa di layar HP
-        // Ukuran asli canvas tetap resolusi penuh (untuk download)
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        canvas.style.objectFit = 'contain';
-    }
-    
-    // GPS Otomatis (Browser API)
-    gpsBtn.addEventListener('click', () => {
-        gpsBtn.innerHTML = '⏳ Mencari...';
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
-                
-                gpsBtn.innerHTML = '📍 Cek GPS';
-                
-                // Coba ambil nama jalan (Reverse Geocoding)
-                try {
-                    const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lng}&format=json`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    
-                    if(data.display_name) {
-                        // Ambil bagian alamat yang relevan saja (biar tidak kepanjangan)
-                        let addr = data.address;
-                        let text = `${addr.road || ''}, ${addr.suburb || ''}, ${addr.city || addr.county || ''}`;
-                        locInput.value = text.replace(/^, /, '').replace(/, ,/g, ',');
-                    } else {
-                        locInput.value = `Lokasi: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-                    }
-                } catch(e) {
-                    locInput.value = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-                }
-                draw();
-            }, (err) => {
-                alert("Gagal ambil lokasi. Pastikan GPS aktif.");
-                gpsBtn.innerHTML = '📍 Cek GPS';
-            });
-        } else {
-            alert("Browser tidak support GPS.");
+    canvasContainer.addEventListener('touchmove', (e) => {
+        if(!imgLoaded) return;
+        e.preventDefault(); 
+        if (e.touches.length === 2) {
+            const currentDist = getDist(e.touches);
+            const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const newScale = initialScale * (currentDist / initialPinchDist);
+            viewScale = Math.min(Math.max(0.1, newScale), 10); 
+            const dx = centerX - lastPanX; const dy = centerY - lastPanY;
+            viewX += dx; viewY += dy; lastPanX = centerX; lastPanY = centerY; updateTransform();
+        } else if (e.touches.length === 1) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
         }
+    }, {passive: false});
+
+    canvasContainer.addEventListener('touchend', handleEnd);
+
+    // MOUSE
+    canvasContainer.addEventListener('mousedown', (e) => { if(!imgLoaded) return; handleStart(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', (e) => { if(!imgLoaded) return; if (e.buttons === 1) handleMove(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', handleEnd);
+
+
+    // --- 5. INPUT FILE & LAINNYA ---
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        isNewFile = true; const reader = new FileReader();
+        reader.onload = (ev) => {
+            const tempImg = new Image();
+            tempImg.onload = () => { sourceImage = tempImg; isUsingCanvasSource = false; imgLoaded = true; setupHighResCanvas(); };
+            tempImg.src = ev.target.result;
+        }; reader.readAsDataURL(file);
     });
 
-    // --- SISTEM PETA (LEAFLET) ---
-    const mapModal = document.getElementById('mapModal');
-    const closeMapBtn = document.getElementById('closeMapBtn');
+    // KAMERA
+    const openCameraBtn = document.getElementById('openCameraBtn');
+    const cameraModal = document.getElementById('cameraModal');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const closeCamBtn = document.getElementById('closeCamBtn');
+    const shutterBtn = document.getElementById('shutterBtn');
+    const switchCamBtn = document.getElementById('switchCamBtn');
+    const rotateCamBtn = document.getElementById('rotateCamBtn');
+    let currentStream = null; let facingMode = 'environment'; let currentRotation = 0; 
 
-    async function initMap(lat = -2.5489, lng = 118.0149, zoom = 5) {
-      if(map) return; // Jangan init ulang jika sudah ada
-
-      map = L.map('mapView', {
-        zoomSnap: 0.5,
-        zoomDelta: 0.5,
-        touchZoom: true
-      }).setView([lat, lng], zoom);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap',
-        maxZoom: 19
-      }).addTo(map);
-
-      // Fitur Search
-      map.addControl(new L.Control.Search({
-        position: 'topleft',
-        url: 'https://nominatim.openstreetmap.org/search?format=json&q={s}',
-        jsonpParam: 'json_callback',
-        propertyName: 'display_name',
-        propertyLoc: ['lat','lon'],
-        marker: false,
-        autoCollapse: true,
-        autoType: false,
-        minLength: 2
-      }));
-
-      // Fitur Locate (GPS Button di Peta)
-      L.control.locate({
-        position: 'topright',
-        strings: { title: "Posisi Saya" },
-        locateOptions: { enableHighAccuracy: true }
-      }).addTo(map);
-
-      // Event Klik Peta
-      map.on('click', async function(e) {
-        if (marker) map.removeLayer(marker);
-        marker = L.marker(e.latlng).addTo(map);
-
-        // Reverse Geo
+    openCameraBtn.addEventListener('click', async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert("Browser error."); return; }
+        await startCamera();
+    });
+    async function startCamera() {
+        if (currentStream) stopCamera(); updateVideoStyle();
         try {
-           const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`;
-           const r = await fetch(url);
-           const d = await r.json();
-           
-           let simpleAddr = d.display_name ? d.display_name.split(',').slice(0,4).join(',') : `Lat: ${e.latlng.lat.toFixed(4)}`;
-           locInput.value = simpleAddr;
-        } catch(err) {
-           locInput.value = `Pin: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+            currentStream = await navigator.mediaDevices.getUserMedia({video: { facingMode: facingMode, width: {ideal:4096}, height: {ideal:2160} }});
+            cameraVideo.srcObject = currentStream; cameraModal.style.display = 'flex';
+        } catch (err) { alert("Gagal akses kamera."); cameraModal.style.display = 'none'; }
+    }
+    function stopCamera() { if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; } cameraVideo.srcObject = null; }
+    closeCamBtn.addEventListener('click', () => { stopCamera(); cameraModal.style.display = 'none'; });
+    switchCamBtn.addEventListener('click', () => { facingMode = (facingMode==='environment')?'user':'environment'; startCamera(); });
+    rotateCamBtn.addEventListener('click', () => { currentRotation = (currentRotation+90)%360; updateVideoStyle(); });
+    function updateVideoStyle() {
+        let t = `rotate(${currentRotation}deg)`; if(facingMode==='user') t+=` scaleX(-1)`;
+        cameraVideo.style.transform = t; cameraVideo.style.objectFit=(currentRotation%180!==0)?"contain":"cover";
+    }
+    shutterBtn.addEventListener('click', () => {
+        if(!currentStream) return;
+        const vW = cameraVideo.videoWidth; const vH = cameraVideo.videoHeight;
+        const tC = document.createElement('canvas'); const ctxT = tC.getContext('2d');
+        if(currentRotation%180!==0) { tC.width=vH; tC.height=vW; } else { tC.width=vW; tC.height=vH; }
+        ctxT.translate(tC.width/2, tC.height/2); ctxT.rotate(currentRotation*Math.PI/180);
+        if(facingMode==='user') ctxT.scale(-1,1);
+        ctxT.drawImage(cameraVideo, -vW/2, -vH/2, vW, vH);
+        sourceImage = tC; isUsingCanvasSource=true; imgLoaded=true; isNewFile=true;
+        stopCamera(); cameraModal.style.display='none'; setupHighResCanvas();
+        const n = new Date(); dtInput.value=new Date(n-n.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    });
+
+    // ROTATE
+    rotateBtn.addEventListener('click', () => {
+        if(!imgLoaded || !sourceImage) return;
+        const origT = rotateBtn.textContent; rotateBtn.textContent = '⏳'; 
+        requestAnimationFrame(() => {
+            const w = getSourceWidth(); const h = getSourceHeight();
+            const tC = document.createElement('canvas'); tC.width = h; tC.height = w;
+            const xT = tC.getContext('2d');
+            xT.translate(tC.width/2, tC.height/2); xT.rotate(90*Math.PI/180);
+            xT.drawImage(sourceImage, -w/2, -h/2);
+            sourceImage = tC; isUsingCanvasSource = true;
+            setupHighResCanvas();
+            if(cropMode) { cropRect = null; cropAction=null; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); cropMode=false; }
+            draw(); rotateBtn.textContent = origT;
+        });
+    });
+
+    // CROP BUTTON
+    toggleCropBtn.addEventListener('click', () => {
+        if (cropMode) {
+            if (cropRect && cropRect.w > 10 && cropRect.h > 10) applyCrop();
+            cropMode = false;
+            toggleCropBtn.textContent = '✂ Potong';
+            toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary');
+        } else {
+            cropMode = true; 
+            const cw = canvas.width; const ch = canvas.height;
+            cropRect = { x: cw*0.1, y: ch*0.1, w: cw*0.8, h: ch*0.8 };
+            toggleCropBtn.textContent = '✅ Terapkan';
+            toggleCropBtn.classList.remove('btn-secondary'); toggleCropBtn.classList.add('btn-danger');
         }
-        
         draw();
-        // Tutup modal setelah pilih (delay sedikit biar user liat marker)
-        setTimeout(() => mapModal.style.display = 'none', 400);
-      });
+    });
+
+    function applyCrop() {
+        if (!sourceImage || !cropRect) return;
+        const x = cropRect.w < 0 ? cropRect.x + cropRect.w : cropRect.x;
+        const y = cropRect.h < 0 ? cropRect.y + cropRect.h : cropRect.y;
+        const w = Math.abs(cropRect.w);
+        const h = Math.abs(cropRect.h);
+        const tC = document.createElement('canvas'); tC.width = w; tC.height = h;
+        const tX = tC.getContext('2d');
+        tX.drawImage(sourceImage, x, y, w, h, 0, 0, w, h);
+        sourceImage = tC; isUsingCanvasSource = true; setupHighResCanvas();
     }
 
-    mapBtn.addEventListener('click', () => {
-      mapModal.style.display = 'flex';
-      
-      // Init peta jika belum, atau resize jika sudah
-      if (!map) {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(pos => {
-            initMap(pos.coords.latitude, pos.coords.longitude, 15);
-          }, () => initMap());
-        } else {
-          initMap();
+    // GPS Location
+    gpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            alert("Browser tidak mendukung GPS.");
+            return;
         }
-      } else {
-        setTimeout(() => map.invalidateSize(), 200); // Fix peta abu-abu
-      }
-    });
-
-    closeMapBtn.addEventListener('click', () => {
-      mapModal.style.display = 'none';
-    });
-
-    // --- DOWNLOAD ---
-    downloadFinalBtn.addEventListener('click', () => {
-        if(!imgLoaded) return alert("Belum ada foto!");
+        gpsBtn.innerHTML = "⏳ Mengambil...";
         
-        const link = document.createElement('a');
-        link.download = `Stamp_${Date.now()}.jpg`;
-        // Kualitas 0.9 (90%)
-        link.href = canvas.toDataURL('image/jpeg', 0.9);
-        link.click();
+        navigator.geolocation.getCurrentPosition(async (p) => {
+            try {
+                // Menggunakan LocationIQ
+                const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json`;
+                
+                const r = await fetch(url);
+                const d = await r.json();
+
+                if (d.error) throw new Error(d.error);
+
+                // --- LOGIKA PERAPIH ALAMAT ---
+                // LocationIQ memberikan 'display_name' yang sangat panjang.
+                // Kita ambil 3-4 bagian depannya saja agar pas di foto.
+                let addressParts = d.display_name.split(',');
+                
+                // Ambil maksimal 3 komponen pertama (misal: Nama Gedung, Jalan, Kecamatan)
+                let simpleAddress = addressParts.slice(0, 3).join(',').trim();
+                
+                // Masukkan ke kotak input
+                locInput.value = `${simpleAddress}\n(${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)})`;
+                
+                // Update canvas
+                draw();
+                gpsBtn.innerHTML = "📍 Cek GPS";
+
+            } catch(e) {
+                console.error(e);
+                alert("Gagal mendeteksi lokasi: " + e.message);
+                gpsBtn.innerHTML = "📍 Cek GPS";
+            }
+        }, (err) => {
+            console.warn(err);
+            alert("Aktifkan GPS di HP kamu!");
+            gpsBtn.innerHTML = "📍 Cek GPS";
+        }, {
+            enableHighAccuracy: true, // Pakai mode akurasi tinggi
+            timeout: 10000,
+            maximumAge: 0
+        });
+    });
+// --- PENCARIAN MANUAL LOKASI ---
+    let debT;
+    locInput.addEventListener('input', (e) => {
+        requestRender(); 
+        
+        const q = e.target.value.split('\n')[0]; 
+        if(q.length < 3) return; 
+
+        clearTimeout(debT);
+        debT = setTimeout(async() => {
+            try {
+                // Tambahkan '&addressdetails=1' untuk memastikan data lengkap
+                const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1`;
+                
+                const r = await fetch(url);
+                const res = await r.json();
+                
+                suggestionsBox.innerHTML = '';
+                if (Array.isArray(res) && res.length > 0) {
+                    suggestionsBox.style.display = 'block';
+                    res.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        // Tampilkan nama di list saran
+                        div.textContent = item.display_name; 
+                        
+                        div.onclick = () => {
+                            // --- LOGIKA BARU: MENGAMBIL LEBIH BANYAK DETAIL ---
+                            let parts = item.display_name.split(',');
+
+                            // Kita ambil 6 bagian pertama agar mencakup:
+                            // 1. Nama Gedung/Tempat
+                            // 2. Jalan & Nomor
+                            // 3. Desa/Kelurahan
+                            // 4. Kecamatan
+                            // 5. Kota/Kabupaten
+                            // 6. Provinsi
+                            // (Biasanya Kode Pos dan Negara ada di urutan belakang, jadi aman terpotong)
+                            let detailedName = parts.slice(0, 6).join(',').trim();
+
+                            // Masukkan ke input box
+                            locInput.value = `${detailedName}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
+                            
+                            suggestionsBox.style.display = 'none';
+                            requestRender();
+                        };
+                        suggestionsBox.appendChild(div);
+                    });
+                } else {
+                    suggestionsBox.style.display = 'none';
+                }
+            } catch(err) { }
+        }, 800); 
+    });
+    
+    document.addEventListener('click', e => { if(!e.target.closest('.location-wrapper')) suggestionsBox.style.display='none'; });
+
+    window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
+    sizeSlider.addEventListener('input', ()=>{ sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); });
+    opacitySlider.addEventListener('input', ()=>{ opacityValDisplay.textContent=opacitySlider.value+'%'; requestRender(); });
+    [dtInput, fontColor, fontSelect, showDateToggle].forEach(e=>e.addEventListener('input', requestRender));
+    window.addEventListener('resize', ()=>{if(sourceImage) setupHighResCanvas();});
+    
+    resetViewBtn.addEventListener('click', ()=>{ if(imgLoaded){ viewScale=1; viewX=0; viewY=0; updateTransform(); stampX=canvas.width*0.05; stampY=canvas.height*0.9; draw(); } });
+    clearBtn.addEventListener('click', ()=>{ if(imgLoaded && confirm('Hapus?')) { sourceImage=null; imgLoaded=false; isNewFile=false; fileInput.value=''; cropMode=false; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); draw(); } });
+
+    downloadFinalBtn.addEventListener('click', () => {
+        if(!imgLoaded) return;
+        draw();
+        const oT = downloadFinalBtn.textContent; downloadFinalBtn.textContent = '⏳...'; downloadFinalBtn.disabled = true;
+        (function c(q) {
+            canvas.toBlob(b => {
+                if(b.size>MAX_FILE_SIZE && q>0.1) c(q-0.05);
+                else {
+                    const l = document.createElement('a'); l.download=`Stamp_${Date.now()}.jpg`; l.href=URL.createObjectURL(b); l.click();
+                    downloadFinalBtn.textContent=oT; downloadFinalBtn.disabled=false;
+                }
+            }, 'image/jpeg', q);
+        })(1.0);
     });
 
-    // Render awal
-    draw();
+    draw(); 
+</script>
 
-  </script>
+
+
+
+
 </body>
 </html>
