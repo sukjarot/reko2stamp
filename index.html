@@ -9,11 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   
   <style>
     /* Fix tampilan control pencarian agar tidak tertutup */
@@ -348,6 +347,7 @@
       <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
     </div>
   </div>
+  
   <script>
     // --- PENDAFTARAN SERVICE WORKER (PWA) ---
     if ('serviceWorker' in navigator) {
@@ -419,13 +419,6 @@
     const now = new Date();
     const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     dtInput.value = localIso;
-
-    // --- Pendaftaran Service Worker (Agar Offline Jalan) ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Gagal', err));
-        });
-    }
 
     // --- 2. HELPER RENDERING ---
     function requestRender() {
@@ -895,161 +888,115 @@
         sourceImage = tC; isUsingCanvasSource = true; setupHighResCanvas();
     }
 
-    // GPS Location
-    gpsBtn.addEventListener('click', () => {
-        if (!navigator.geolocation) {
-            alert("Browser tidak mendukung GPS.");
-            return;
-        }
-        gpsBtn.innerHTML = "⏳ Mengambil...";
-        
-        navigator.geolocation.getCurrentPosition(async (p) => {
-            try {
-                // Menggunakan LocationIQ
-                const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json`;
-                
-                const r = await fetch(url);
-                const d = await r.json();
-
-                if (d.error) throw new Error(d.error);
-
-                // --- LOGIKA PERAPIH ALAMAT ---
-                // LocationIQ memberikan 'display_name' yang sangat panjang.
-                // Kita ambil 3-4 bagian depannya saja agar pas di foto.
-                let addressParts = d.display_name.split(',');
-                
-                // Ambil maksimal 3 komponen pertama (misal: Nama Gedung, Jalan, Kecamatan)
-                let simpleAddress = addressParts.slice(0, 3).join(',').trim();
-                
-                // Masukkan ke kotak input
-                locInput.value = `${simpleAddress}\n(${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)})`;
-							
-                // --- LOGIKA PETA INTERAKTIF DENGAN PENCARIAN ---
-    const mapBtn = document.getElementById('mapBtn'); // Pastikan tombol ini sudah ada di HTML
-    const mapModal = document.getElementById('mapModal');
-    const closeMapBtn = document.getElementById('closeMapBtn');
+    // ============================================================
+    // PERBAIKAN FITUR PETA & GPS (FINAL SINKRON)
+    // ============================================================
     
-    // Variabel Global untuk Peta
-    let map = null;
-    let marker = null;
-    let lastLat = -7.605, lastLon = 111.905; // Default Nganjuk
+    // Variabel Global khusus Peta
+    let mapInstance = null;
+    let mapMarker = null;
+    let currentLat = -7.605, currentLon = 111.905; // Koordinat default
 
-    // 1. Fungsi Inisialisasi Peta
-    function initMap() {
-        if (map) return; // Jika peta sudah ada, jangan buat ulang
-
-        // Inisialisasi Leaflet
-        map = L.map('mapContainer').setView([lastLat, lastLon], 13);
-
-        // Tambahkan Layer Peta (OpenStreetMap)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-
-        // Tambahkan Kontrol Pencarian (Search Bar)
-        const geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false
-        })
-        .on('markgeocode', function(e) {
-            const center = e.geocode.center;
-            updateMarker(center.lat, center.lng);
-            map.setView(center, 16);
-            // Langsung pilih lokasi hasil pencarian
-            selectLocation(center.lat, center.lng);
-        })
-        .addTo(map);
-
-        // Event Klik pada Peta
-        map.on('click', function(e) {
-            updateMarker(e.latlng.lat, e.latlng.lng);
-            selectLocation(e.latlng.lat, e.latlng.lng);
-        });
-    }
-
-    // 2. Fungsi Update Marker (Pin Merah)
-    function updateMarker(lat, lng) {
-        if (marker) {
-            marker.setLatLng([lat, lng]);
-        } else {
-            marker = L.marker([lat, lng]).addTo(map);
-        }
-    }
-
-    // 3. Fungsi Saat Lokasi Dipilih (Reverse Geocoding)
-    async function selectLocation(lat, lng) {
-        // Tutup modal agar user melihat proses di layar utama
-        mapModal.style.display = 'none';
-        
-        locInput.value = "⏳ Mengambil alamat dari peta...";
-        requestRender(); // Update canvas
+    // 1. FUNGSI AMBIL ALAMAT (REVERSE GEOCODING)
+    async function updateAddressField(lat, lon) {
+        locInput.value = "⏳ Mengambil alamat...";
+        requestRender();
 
         try {
-            // Gunakan API LocationIQ yang sudah ada untuk mendapatkan nama jalan
-            const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lng}&format=json`;
-            
-            const r = await fetch(url);
-            const d = await r.json();
-            
-            if (d.error) throw new Error(d.error);
+            const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json`;
+            const response = await fetch(url);
+            const data = await response.json();
 
-            // Format alamat agar rapi (3 bagian pertama)
-            let addressParts = d.display_name.split(',');
-            let simpleAddress = addressParts.slice(0, 4).join(',').trim();
+            if (data.error) throw new Error(data.error);
+
+            // Perapi Alamat (Ambil 4 bagian pertama)
+            let parts = data.display_name.split(',');
+            let cleanAddress = parts.slice(0, 4).join(',').trim();
             
-            // Masukkan ke Text Area
-            locInput.value = `${simpleAddress}\n(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-            
-            // Simpan koordinat terakhir
-            lastLat = lat; 
-            lastLon = lng;
-            
+            locInput.value = `${cleanAddress}\n(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
         } catch (e) {
-            locInput.value = `Lokasi Terpilih\n(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-            alert("Gagal mengambil nama jalan, tapi koordinat tersimpan.");
+            locInput.value = `Lokasi: (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
         }
-        
-        requestRender(); // Gambar ulang canvas
+        requestRender();
     }
 
-    // 4. Event Listener Tombol Buka Peta
-    if(mapBtn) {
-        mapBtn.addEventListener('click', () => {
-            mapModal.style.display = 'flex';
+    // 2. LOGIKA TOMBOL GPS
+    gpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) return alert("GPS tidak didukung");
+        
+        gpsBtn.innerHTML = "⏳ Mencari...";
+        navigator.geolocation.getCurrentPosition(async (p) => {
+            currentLat = p.coords.latitude;
+            currentLon = p.coords.longitude;
             
-            // Tunggu sebentar agar modal tampil dulu, baru load peta
-            // (Penting agar ukuran peta tidak error/abu-abu)
-            setTimeout(() => {
-                initMap();
-                map.invalidateSize(); // Refresh ukuran peta
-                
-                // Jika user sudah pernah GPS, pusatkan peta ke sana
-                if(lastLat && lastLon) {
-                   map.setView([lastLat, lastLon], 15);
-                   updateMarker(lastLat, lastLon);
-                }
-            }, 100);
+            await updateAddressField(currentLat, currentLon);
+            gpsBtn.innerHTML = "📍 Cek GPS";
+            
+            // Update posisi marker jika peta sedang terbuka
+            if (mapInstance) {
+                mapInstance.setView([currentLat, currentLon], 16);
+                if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
+            }
+        }, (err) => {
+            alert("Gagal akses GPS. Pastikan izin lokasi aktif.");
+            gpsBtn.innerHTML = "📍 Cek GPS";
+        }, { enableHighAccuracy: true });
+    });
+
+    // 3. LOGIKA PETA INTERAKTIF
+    const mapModal = document.getElementById('mapModal');
+    const closeMapBtn = document.getElementById('closeMapBtn');
+
+    function initLeafletMap() {
+        if (mapInstance) return; // Jangan inisialisasi ulang
+
+        mapInstance = L.map('mapContainer').setView([currentLat, currentLon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
+
+        // Tambah fitur Search (Pencarian)
+        const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
+            .on('markgeocode', function(e) {
+                const bbox = e.geocode.center;
+                selectAndClose(bbox.lat, bbox.lng);
+            })
+            .addTo(mapInstance);
+
+        // Klik pada peta untuk pilih lokasi
+        mapInstance.on('click', (e) => {
+            selectAndClose(e.latlng.lat, e.latlng.lng);
         });
     }
 
-    // 5. Tutup Modal
-    closeMapBtn.addEventListener('click', () => {
-        mapModal.style.display = 'none';
+    function selectAndClose(lat, lon) {
+        currentLat = lat;
+        currentLon = lon;
+        
+        if (mapMarker) mapMarker.setLatLng([lat, lon]);
+        else mapMarker = L.marker([lat, lon]).addTo(mapInstance);
+
+        if (confirm("Pilih lokasi ini?")) {
+            mapModal.style.display = 'none';
+            updateAddressField(lat, lon);
+        }
+    }
+
+    // Tombol Buka Peta
+    document.getElementById('mapBtn').addEventListener('click', () => {
+        mapModal.style.display = 'flex';
+        
+        // PENTING: Timeout agar peta tampil sempurna (tidak abu-abu)
+        setTimeout(() => {
+            initLeafletMap();
+            mapInstance.invalidateSize(); // Reset ukuran canvas peta
+            mapInstance.setView([currentLat, currentLon], 15);
+            
+            if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
+            else mapMarker = L.marker([currentLat, currentLon]).addTo(mapInstance);
+        }, 300);
     });
 
-    // Integrasi dengan Tombol GPS yang sudah ada (Opsional: Sinkronisasi)
-    // Agar saat user klik "Cek GPS", peta nanti otomatis update ke lokasi itu
-    const oriGpsClick = gpsBtn.onclick; // Simpan fungsi lama jika ada
-    gpsBtn.addEventListener('click', () => {
-       // Kita biarkan logika GPS lama berjalan, 
-       // tapi kita tambahkan listener untuk update variabel lastLat/Lon
-       navigator.geolocation.getCurrentPosition((p)=>{
-           lastLat = p.coords.latitude;
-           lastLon = p.coords.longitude;
-           if(marker && map) {
-               updateMarker(lastLat, lastLon);
-               map.setView([lastLat, lastLon], 16);
-           }
-       });
+    closeMapBtn.addEventListener('click', () => {
+        mapModal.style.display = 'none';
     });
 							
 </script>
@@ -1072,5 +1019,6 @@
   
 </body>
 </html>
+
 
 
