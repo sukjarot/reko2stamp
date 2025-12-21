@@ -1020,9 +1020,11 @@ gpsFollowBtn.addEventListener('click', () => {
     // 3. LOGIKA PETA INTERAKTIF
     const mapModal = document.getElementById('mapModal');
     const closeMapBtn = document.getElementById('closeMapBtn');
+    // Ambil referensi ke tombol follow gps agar tidak error
+    const gpsFollowBtn = document.getElementById('gpsFollowBtn'); 
 
     function initLeafletMap() {
-        if (mapInstance) return; // Jangan inisialisasi ulang
+        if (mapInstance) return; // Jangan inisialisasi ulang jika sudah ada
 
         mapInstance = L.map('mapContainer').setView([currentLat, currentLon], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
@@ -1031,65 +1033,82 @@ gpsFollowBtn.addEventListener('click', () => {
         const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
             .on('markgeocode', function(e) {
                 const bbox = e.geocode.center;
-                selectAndClose(bbox.lat, bbox.lng);
+                // Pindahkan marker dan peta ke lokasi pencarian
+                mapInstance.setView([bbox.lat, bbox.lng], 16);
+                updateMarkerPosition(bbox.lat, bbox.lng);
             })
             .addTo(mapInstance);
 
         // Klik pada peta untuk pilih lokasi
         mapInstance.on('click', (e) => {
-            selectAndClose(e.latlng.lat, e.latlng.lng);
+            // Update marker
+            updateMarkerPosition(e.latlng.lat, e.latlng.lng);
+            // Opsional: Langsung pilih dan tutup modal (jika diinginkan)
+            // selectAndClose(e.latlng.lat, e.latlng.lng);
         });
     }
 
-    function selectAndClose(lat, lon) {
+    // Fungsi Helper untuk memindahkan marker
+    function updateMarkerPosition(lat, lon) {
         currentLat = lat;
         currentLon = lon;
         
-        if (mapMarker) mapMarker.setLatLng([lat, lon]);
-        else {
-  mapMarker = L.marker([lat, lon], { draggable: true }).addTo(mapInstance);
+        // Matikan follow GPS jika user memindahkan marker manual
+        followGPS = false;
+        stopFollowGPS();
+        if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
 
-  mapMarker.on('dragend', (e) => {
-  const pos = e.target.getLatLng();
-  currentLat = pos.lat;
-  currentLon = pos.lng;
+        if (mapMarker) {
+            mapMarker.setLatLng([lat, lon]);
+        } else {
+            mapMarker = L.marker([lat, lon], { draggable: true }).addTo(mapInstance);
+            
+            // Event jika marker digeser manual (drag)
+            mapMarker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                currentLat = pos.lat;
+                currentLon = pos.lng;
+                
+                followGPS = false; 
+                stopFollowGPS();
+                if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+                
+                // Update teks alamat di input utama
+                debounceReverseGeocode(currentLat, currentLon);
+            });
+        }
+        
+        // Update teks alamat di input utama (realtime saat klik peta)
+        debounceReverseGeocode(lat, lon);
+    }
 
-  // 🛑 MATIKAN MODE FOLLOW
-  followGPS = false;
-  stopFollowGPS();
-  if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+    // Fungsi Final saat lokasi dipilih (bisa dipanggil via tombol OK atau Double Click jika mau dikembangkan)
+    function selectAndClose(lat, lon) {
+        updateMarkerPosition(lat, lon);
+        mapModal.style.display = 'none';
+    }
 
-  debounceReverseGeocode(currentLat, currentLon);
-});
+    // --- EVENT LISTENERS TOMBOL PETA ---
 
-
-    // Tombol Buka Peta
+    // 1. Tombol Buka Peta
     document.getElementById('mapBtn').addEventListener('click', () => {
         mapModal.style.display = 'flex';
         
-        // PENTING: Timeout agar peta tampil sempurna (tidak abu-abu)
+        // Timeout agar render peta tidak abu-abu (bug leaflet di modal hidden)
         setTimeout(() => {
             initLeafletMap();
-            mapInstance.invalidateSize(); // Reset ukuran canvas peta
+            mapInstance.invalidateSize(); 
             mapInstance.setView([currentLat, currentLon], 15);
-            
-            if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
-            else {
-  mapMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(mapInstance);
+            updateMarkerPosition(currentLat, currentLon);
+        }, 300);
+    });
 
-  mapMarker.on('dragend', (e) => {
-    const pos = e.target.getLatLng();
-    currentLat = pos.lat;
-    currentLon = pos.lng;
-    debounceReverseGeocode(currentLat, currentLon);
-  });
-}
-
+    // 2. Tombol Tutup Peta (X)
     closeMapBtn.addEventListener('click', () => {
         mapModal.style.display = 'none';
     });
-							
-</script>
+    
+  </script>
 	
   
 	
