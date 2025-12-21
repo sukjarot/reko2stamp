@@ -1107,6 +1107,99 @@ gpsFollowBtn.addEventListener('click', () => {
     closeMapBtn.addEventListener('click', () => {
         mapModal.style.display = 'none';
     });
+	
+    // 6. PERBAIKAN: EVENT LISTENERS YANG HILANG
+    // (Tambahkan kode ini di bagian paling bawah blok <script>)
+    
+    // --- A. FUNGSI UNTUK TOMBOL +/- UKURAN FONT ---
+    // Fungsi ini dipanggil oleh onclick di HTML, jadi harus di window scope
+    window.adjustSize = function(val) {
+        let current = parseInt(sizeSlider.value);
+        let newVal = current + val;
+        // Batasan min/max sesuai slider HTML
+        if (newVal < 20) newVal = 20;
+        if (newVal > 300) newVal = 300;
+        
+        sizeSlider.value = newVal;
+        sizeValDisplay.textContent = newVal + 'px';
+        requestRender(); // Update gambar
+    };
+
+    // --- B. LISTENER UNTUK SLIDER & INPUT (LIVE UPDATE) ---
+    
+    // 1. Slider Ukuran Teks
+    sizeSlider.addEventListener('input', (e) => {
+        sizeValDisplay.textContent = e.target.value + 'px';
+        requestRender();
+    });
+
+    // 2. Slider Transparansi (Opacity)
+    opacitySlider.addEventListener('input', (e) => {
+        opacityValDisplay.textContent = e.target.value + '%';
+        requestRender();
+    });
+
+    // 3. Pengaturan Waktu & Toggle Tanggal
+    showDateToggle.addEventListener('change', requestRender);
+    dtInput.addEventListener('input', requestRender); // Update saat diketik/diganti
+
+    // 4. Input Lokasi (Ketik Manual)
+    locInput.addEventListener('input', requestRender);
+
+    // 5. Pengaturan Font & Warna
+    fontSelect.addEventListener('change', requestRender);
+    fontColor.addEventListener('input', requestRender);
+
+    // --- C. TOMBOL AKSI UTAMA ---
+
+    // 1. Tombol Reset View (Posisi & Zoom)
+    resetViewBtn.addEventListener('click', () => {
+        viewScale = 1; 
+        viewX = 0; 
+        viewY = 0;
+        updateTransform();
+    });
+
+    // 2. Tombol Hapus Foto
+    clearBtn.addEventListener('click', () => {
+        // Reset variabel
+        sourceImage = null;
+        imgLoaded = false;
+        isNewFile = false;
+        
+        // Bersihkan Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.transform = 'none';
+        
+        // Kembalikan ukuran canvas ke default kecil
+        canvas.width = 300; 
+        canvas.height = 300;
+        draw(); // Akan menggambar teks "Pilih Foto Dulu"
+        
+        // Reset Input File agar bisa pilih file yang sama lagi jika mau
+        fileInput.value = '';
+    });
+
+    // 3. Tombol Simpan / Download
+    downloadFinalBtn.addEventListener('click', () => {
+        if (!imgLoaded) return alert("Belum ada foto untuk disimpan!");
+        
+        // Buat nama file unik berdasarkan waktu
+        const timestamp = new Date().getTime();
+        const fileName = `RekoStamp_${timestamp}.jpg`;
+
+        // Ambil data gambar dari canvas
+        // (Kualitas 0.9 = 90% agar tidak terlalu besar tapi tetap tajam)
+        const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+
+        // Buat link download palsu dan klik otomatis
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
     
   </script>
 	
@@ -1114,6 +1207,7 @@ gpsFollowBtn.addEventListener('click', () => {
 	
 </body>
 </html>
+
 
 
 
