@@ -9,6 +9,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  
+  <style>
+    /* Fix tampilan control pencarian agar tidak tertutup */
+    .leaflet-control-geocoder-form input { color: #000; }
+    .leaflet-control-geocoder-icon { background-color: white; border-radius: 4px; }
+  </style>
   
   <style>
     :root {
@@ -912,164 +923,154 @@
                 
                 // Masukkan ke kotak input
                 locInput.value = `${simpleAddress}\n(${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)})`;
-                // --- PENAMBAHAN LOGIKA TOMBOL PETA & MODAL ---
-    const mapBtn = document.getElementById('mapBtn');
+							
+                // --- LOGIKA PETA INTERAKTIF DENGAN PENCARIAN ---
+    const mapBtn = document.getElementById('mapBtn'); // Pastikan tombol ini sudah ada di HTML
     const mapModal = document.getElementById('mapModal');
     const closeMapBtn = document.getElementById('closeMapBtn');
-    const mapFrame = document.getElementById('mapFrame');
     
-    // Koordinat default (jika GPS belum ditekan) - diset ke area sekitar Nganjuk sesuai gambar referensi
-    let lastKnownLat = -7.605; 
-    let lastKnownLon = 111.905;
+    // Variabel Global untuk Peta
+    let map = null;
+    let marker = null;
+    let lastLat = -7.605, lastLon = 111.905; // Default Nganjuk
 
-    // Update fungsi GPS yang sudah ada untuk menyimpan koordinat terakhir
-    const originalGpsSuccess = navigator.geolocation.getCurrentPosition;
-    navigator.geolocation.getCurrentPosition = function(success, error, options) {
-        originalGpsSuccess.call(this, (p) => {
-            // Simpan koordinat saat berhasil dapat GPS
-            lastKnownLat = p.coords.latitude;
-            lastKnownLon = p.coords.longitude;
-            success(p); // Lanjutkan fungsi asli
-        }, error, options);
-    };
+    // 1. Fungsi Inisialisasi Peta
+    function initMap() {
+        if (map) return; // Jika peta sudah ada, jangan buat ulang
 
-    // Event Listener Tombol Cek Peta
-    mapBtn.addEventListener('click', () => {
-        // Buka modal
-        mapModal.style.display = 'flex';
-        mapBtn.textContent = '⏳ Memuat...';
+        // Inisialisasi Leaflet
+        map = L.map('mapContainer').setView([lastLat, lastLon], 13);
+
+        // Tambahkan Layer Peta (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Tambahkan Kontrol Pencarian (Search Bar)
+        const geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false
+        })
+        .on('markgeocode', function(e) {
+            const center = e.geocode.center;
+            updateMarker(center.lat, center.lng);
+            map.setView(center, 16);
+            // Langsung pilih lokasi hasil pencarian
+            selectLocation(center.lat, center.lng);
+        })
+        .addTo(map);
+
+        // Event Klik pada Peta
+        map.on('click', function(e) {
+            updateMarker(e.latlng.lat, e.latlng.lng);
+            selectLocation(e.latlng.lat, e.latlng.lng);
+        });
+    }
+
+    // 2. Fungsi Update Marker (Pin Merah)
+    function updateMarker(lat, lng) {
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else {
+            marker = L.marker([lat, lng]).addTo(map);
+        }
+    }
+
+    // 3. Fungsi Saat Lokasi Dipilih (Reverse Geocoding)
+    async function selectLocation(lat, lng) {
+        // Tutup modal agar user melihat proses di layar utama
+        mapModal.style.display = 'none';
         
-        // Siapkan URL Embed OpenStreetMap
-        // Kita buat bounding box (kotak area) kecil di sekitar koordinat
-        const offset = 0.008; // Semakin kecil nilainya, semakin zoom-in
-        const bbox = `${lastKnownLon - offset},${lastKnownLat - offset},${lastKnownLon + offset},${lastKnownLat + offset}`;
-        // URL embed dengan marker di tengah
-        const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lastKnownLat},${lastKnownLon}`;
+        locInput.value = "⏳ Mengambil alamat dari peta...";
+        requestRender(); // Update canvas
+
+        try {
+            // Gunakan API LocationIQ yang sudah ada untuk mendapatkan nama jalan
+            const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lng}&format=json`;
+            
+            const r = await fetch(url);
+            const d = await r.json();
+            
+            if (d.error) throw new Error(d.error);
+
+            // Format alamat agar rapi (3 bagian pertama)
+            let addressParts = d.display_name.split(',');
+            let simpleAddress = addressParts.slice(0, 4).join(',').trim();
+            
+            // Masukkan ke Text Area
+            locInput.value = `${simpleAddress}\n(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+            
+            // Simpan koordinat terakhir
+            lastLat = lat; 
+            lastLon = lng;
+            
+        } catch (e) {
+            locInput.value = `Lokasi Terpilih\n(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+            alert("Gagal mengambil nama jalan, tapi koordinat tersimpan.");
+        }
         
-        // Set src iframe untuk memuat peta
-        mapFrame.src = mapUrl;
+        requestRender(); // Gambar ulang canvas
+    }
 
-        // Kembalikan teks tombol setelah beberapa saat
-        setTimeout(() => { mapBtn.innerHTML = '🗺️ Cek Peta'; }, 2000);
-    });
+    // 4. Event Listener Tombol Buka Peta
+    if(mapBtn) {
+        mapBtn.addEventListener('click', () => {
+            mapModal.style.display = 'flex';
+            
+            // Tunggu sebentar agar modal tampil dulu, baru load peta
+            // (Penting agar ukuran peta tidak error/abu-abu)
+            setTimeout(() => {
+                initMap();
+                map.invalidateSize(); // Refresh ukuran peta
+                
+                // Jika user sudah pernah GPS, pusatkan peta ke sana
+                if(lastLat && lastLon) {
+                   map.setView([lastLat, lastLon], 15);
+                   updateMarker(lastLat, lastLon);
+                }
+            }, 100);
+        });
+    }
 
-    // Event Listener Tutup Modal Peta
+    // 5. Tutup Modal
     closeMapBtn.addEventListener('click', () => {
         mapModal.style.display = 'none';
-        // Kosongkan src agar tidak memakan memori saat ditutup
-        mapFrame.src = 'about:blank';
-    });
-    // --- AKHIR PENAMBAHAN JAVASCRIPT PETA ---
-                // Update canvas
-                draw();
-                gpsBtn.innerHTML = "📍 Cek GPS";
-
-            } catch(e) {
-                console.error(e);
-                alert("Gagal mendeteksi lokasi: " + e.message);
-                gpsBtn.innerHTML = "📍 Cek GPS";
-            }
-        }, (err) => {
-            console.warn(err);
-            alert("Aktifkan GPS di HP kamu!");
-            gpsBtn.innerHTML = "📍 Cek GPS";
-        }, {
-            enableHighAccuracy: true, // Pakai mode akurasi tinggi
-            timeout: 10000,
-            maximumAge: 0
-        });
-    });
-// --- PENCARIAN MANUAL LOKASI ---
-    let debT;
-    locInput.addEventListener('input', (e) => {
-        requestRender(); 
-        
-        const q = e.target.value.split('\n')[0]; 
-        if(q.length < 3) return; 
-
-        clearTimeout(debT);
-        debT = setTimeout(async() => {
-            try {
-                // Tambahkan '&addressdetails=1' untuk memastikan data lengkap
-                const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1`;
-                
-                const r = await fetch(url);
-                const res = await r.json();
-                
-                suggestionsBox.innerHTML = '';
-                if (Array.isArray(res) && res.length > 0) {
-                    suggestionsBox.style.display = 'block';
-                    res.forEach(item => {
-                        const div = document.createElement('div');
-                        div.className = 'suggestion-item';
-                        // Tampilkan nama di list saran
-                        div.textContent = item.display_name; 
-                        
-                        div.onclick = () => {
-                            // --- LOGIKA BARU: MENGAMBIL LEBIH BANYAK DETAIL ---
-                            let parts = item.display_name.split(',');
-
-                            // Kita ambil 6 bagian pertama agar mencakup:
-                            // 1. Nama Gedung/Tempat
-                            // 2. Jalan & Nomor
-                            // 3. Desa/Kelurahan
-                            // 4. Kecamatan
-                            // 5. Kota/Kabupaten
-                            // 6. Provinsi
-                            // (Biasanya Kode Pos dan Negara ada di urutan belakang, jadi aman terpotong)
-                            let detailedName = parts.slice(0, 6).join(',').trim();
-
-                            // Masukkan ke input box
-                            locInput.value = `${detailedName}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
-                            
-                            suggestionsBox.style.display = 'none';
-                            requestRender();
-                        };
-                        suggestionsBox.appendChild(div);
-                    });
-                } else {
-                    suggestionsBox.style.display = 'none';
-                }
-            } catch(err) { }
-        }, 800); 
-    });
-    
-    document.addEventListener('click', e => { if(!e.target.closest('.location-wrapper')) suggestionsBox.style.display='none'; });
-
-    window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
-    sizeSlider.addEventListener('input', ()=>{ sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); });
-    opacitySlider.addEventListener('input', ()=>{ opacityValDisplay.textContent=opacitySlider.value+'%'; requestRender(); });
-    [dtInput, fontColor, fontSelect, showDateToggle].forEach(e=>e.addEventListener('input', requestRender));
-    window.addEventListener('resize', ()=>{if(sourceImage) setupHighResCanvas();});
-    
-    resetViewBtn.addEventListener('click', ()=>{ if(imgLoaded){ viewScale=1; viewX=0; viewY=0; updateTransform(); stampX=canvas.width*0.05; stampY=canvas.height*0.9; draw(); } });
-    clearBtn.addEventListener('click', ()=>{ if(imgLoaded && confirm('Hapus?')) { sourceImage=null; imgLoaded=false; isNewFile=false; fileInput.value=''; cropMode=false; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); draw(); } });
-
-    downloadFinalBtn.addEventListener('click', () => {
-        if(!imgLoaded) return;
-        draw();
-        const oT = downloadFinalBtn.textContent; downloadFinalBtn.textContent = '⏳...'; downloadFinalBtn.disabled = true;
-        (function c(q) {
-            canvas.toBlob(b => {
-                if(b.size>MAX_FILE_SIZE && q>0.1) c(q-0.05);
-                else {
-                    const l = document.createElement('a'); l.download=`Stamp_${Date.now()}.jpg`; l.href=URL.createObjectURL(b); l.click();
-                    downloadFinalBtn.textContent=oT; downloadFinalBtn.disabled=false;
-                }
-            }, 'image/jpeg', q);
-        })(1.0);
     });
 
-    draw(); 
+    // Integrasi dengan Tombol GPS yang sudah ada (Opsional: Sinkronisasi)
+    // Agar saat user klik "Cek GPS", peta nanti otomatis update ke lokasi itu
+    const oriGpsClick = gpsBtn.onclick; // Simpan fungsi lama jika ada
+    gpsBtn.addEventListener('click', () => {
+       // Kita biarkan logika GPS lama berjalan, 
+       // tapi kita tambahkan listener untuk update variabel lastLat/Lon
+       navigator.geolocation.getCurrentPosition((p)=>{
+           lastLat = p.coords.latitude;
+           lastLon = p.coords.longitude;
+           if(marker && map) {
+               updateMarker(lastLat, lastLon);
+               map.setView([lastLat, lastLon], 16);
+           }
+       });
+    });
+							
 </script>
-  html
+```html
   <div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
     <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column;">
-       <div style="padding: 10px; text-align: center; font-weight: bold; border-bottom: 1px solid #334155;">Peta Lokasi</div>
-       <button id="closeMapBtn" class="close-map-overlay-btn">❌</button>
-       <iframe id="mapFrame" width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" style="flex-grow: 1; border:0; background: #ddd;"></iframe>
+       
+       <div style="padding: 10px; display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-bottom: 1px solid #334155;">
+          <span style="font-weight: bold; color: white;">Pilih Lokasi di Peta</span>
+          <button id="closeMapBtn" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">❌</button>
+       </div>
+
+       <div id="mapContainer" style="flex-grow: 1; width: 100%; background: #ddd;"></div>
+       
+       <div style="padding:8px; background:#0f172a; text-align:center; font-size:12px; color:#94a3b8;">
+         🔍 Cari lokasi atau 👆 Klik di peta untuk memilih tempat.
+       </div>
     </div>
   </div>
+  
 </body>
 </html>
+
 
