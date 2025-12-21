@@ -9,6 +9,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  
+  <style>
+    /* Fix tampilan control pencarian agar tidak tertutup */
+    .leaflet-control-geocoder-form input { color: #000; }
+    .leaflet-control-geocoder-icon { background-color: white; border-radius: 4px; }
+  </style>
   
   <style>
     :root {
@@ -103,6 +113,35 @@
       margin-top: 8px; width: 100%;
     }
     .gps-btn:hover { background: var(--success); color: white; }
+    /* --- PENAMBAHAN CSS TOMBOL PETA & GRUP --- */
+    .location-btn-group {
+      display: flex;
+      gap: 10px; /* Jarak antar tombol */
+      margin-top: 8px;
+    }
+    /* Agar kedua tombol berbagi ruang yang sama */
+    .location-btn-group .gps-btn, 
+    .location-btn-group .map-btn-style {
+      flex: 1;
+      margin-top: 0 !important; /* Reset margin lama */
+    }
+    /* Gaya khusus warna biru untuk tombol peta */
+    .map-btn-style {
+        background: rgba(59, 130, 246, 0.2); color: var(--primary);
+        border: 1px solid var(--primary);
+        padding: 8px 12px; border-radius: 6px; font-size: 13px; cursor: pointer;
+        font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;
+        width: 100%;
+    }
+    .map-btn-style:hover { background: var(--primary); color: white; }
+    
+    /* CSS untuk tombol close di dalam modal peta */
+    .close-map-overlay-btn {
+      position: absolute; top: 20px; right: 20px; z-index: 10001;
+      background: rgba(0,0,0,0.6); color: white; border: none;
+      width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer;
+    }
+    /* --- AKHIR PENAMBAHAN CSS --- */
 
     /* TOGGLE SWITCH */
     .toggle-row {
@@ -234,11 +273,17 @@
             <textarea id="locInput" rows="3" placeholder="Ketik lokasi atau klik tombol GPS..."></textarea>
             <div id="suggestions" class="suggestions-list"></div>
         </div>
-        <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
-            📍 Cek GPS
-        </button>
-        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">*By AyaheDira</div>
-      </div>
+        <div class="location-btn-group">
+            <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
+                📍 Cek GPS
+            </button>
+          <button id="gpsFollowBtn" class="gps-btn">
+  🧭 Ikuti GPS: OFF
+</button>
+            <button id="mapBtn" class="map-btn-style" title="Lihat Peta">
+                🗺️ Cek Peta
+            </button>
+        </div>
 
       <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
         <div>
@@ -279,10 +324,10 @@
         </div>
       </div>
 
-      <div class="action-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-        <button id="resetView" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">↺ Reset</button>
-        <button id="rotateBtn" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">⤵ Putar</button>
-        <button id="toggleCrop" class="main-btn btn-secondary" style="padding: 10px; font-size: 0.8rem;">✂ Potong</button>
+      <div class="action-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-top: 25px; gap: 12px;">
+        <button id="resetView" class="main-btn btn-secondary" style="padding: 12px 5px; font-size: 0.8rem;">↺ Reset</button>
+        <button id="rotateBtn" class="main-btn btn-secondary" style="padding: 12px 5px; font-size: 0.8rem;">⤵ Putar</button>
+        <button id="toggleCrop" class="main-btn btn-secondary" style="padding: 12px 5px; font-size: 0.8rem;">✂ Potong</button>
       </div>
 
       <button id="clearBtn" class="main-btn btn-danger" style="margin-top: 10px; margin-bottom: 10px;">🗑 Hapus Foto</button>
@@ -305,6 +350,23 @@
       <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
     </div>
   </div>
+
+<div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
+    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column;">
+       
+       <div style="padding: 10px; display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-bottom: 1px solid #334155;">
+          <span style="font-weight: bold; color: white;">Pilih Lokasi di Peta</span>
+          <button id="closeMapBtn" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">❌</button>
+       </div>
+
+       <div id="mapContainer" style="flex-grow: 1; width: 100%; background: #ddd;"></div>
+       
+       <div style="padding:8px; background:#0f172a; text-align:center; font-size:12px; color:#94a3b8;">
+         🔍 Cari lokasi atau 👆 Klik di peta untuk memilih tempat.
+       </div>
+    </div>
+  </div>	
+  
   <script>
     // --- PENDAFTARAN SERVICE WORKER (PWA) ---
     if ('serviceWorker' in navigator) {
@@ -376,13 +438,6 @@
     const now = new Date();
     const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     dtInput.value = localIso;
-
-    // --- Pendaftaran Service Worker (Agar Offline Jalan) ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Gagal', err));
-        });
-    }
 
     // --- 2. HELPER RENDERING ---
     function requestRender() {
@@ -852,141 +907,218 @@
         sourceImage = tC; isUsingCanvasSource = true; setupHighResCanvas();
     }
 
-    // GPS Location
-    gpsBtn.addEventListener('click', () => {
-        if (!navigator.geolocation) {
-            alert("Browser tidak mendukung GPS.");
-            return;
+    // ============================================================
+    // PERBAIKAN FITUR PETA & GPS (FINAL SINKRON)
+    // ============================================================
+    
+    // Variabel Global khusus Peta
+    let mapInstance = null;
+    let mapMarker = null;
+    let currentLat = -7.605, currentLon = 111.905; // Koordinat default
+    let gpsWatchId = null;
+let followGPS = false;
+// ===============================
+// DEBOUNCE REVERSE GEOCODING
+// ===============================
+let debounceTimer = null;
+
+function debounceReverseGeocode(lat, lon, delay = 700) {
+  if (debounceTimer) clearTimeout(debounceTimer);
+
+  debounceTimer = setTimeout(() => {
+    reverseGeocode(lat, lon);
+  }, delay);
+}
+    
+    // 1. FUNGSI AMBIL ALAMAT (REVERSE GEOCODING)
+    async function reverseGeocode(lat, lon) {
+        locInput.value = "⏳ Mengambil alamat...";
+        requestRender();
+
+        try {
+            const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            // Perapi Alamat (Ambil 4 bagian pertama)
+            let parts = data.display_name.split(',');
+            let cleanAddress = parts.slice(0, 4).join(',').trim();
+            
+            locInput.value = `${cleanAddress}\n(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+        } catch (e) {
+            locInput.value = `Lokasi: (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
         }
-        gpsBtn.innerHTML = "⏳ Mengambil...";
+        requestRender();
+    }
+    function startFollowGPS() {
+  if (!navigator.geolocation) {
+    alert("GPS tidak didukung");
+    return;
+  }
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      currentLat = pos.coords.latitude;
+      currentLon = pos.coords.longitude;
+
+      if (mapInstance) {
+        mapInstance.setView([currentLat, currentLon], 17);
+        if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
+      }
+
+      debounceReverseGeocode(currentLat, currentLon);
+    },
+    () => alert("Gagal akses GPS"),
+    { enableHighAccuracy: true }
+  );
+}
+
+function stopFollowGPS() {
+  if (gpsWatchId) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+}
+
+
+    // 2. LOGIKA TOMBOL GPS
+    gpsBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) return alert("GPS tidak didukung");
         
+        gpsBtn.innerHTML = "⏳ Mencari...";
         navigator.geolocation.getCurrentPosition(async (p) => {
-            try {
-                // Menggunakan LocationIQ
-                const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${p.coords.latitude}&lon=${p.coords.longitude}&format=json`;
-                
-                const r = await fetch(url);
-                const d = await r.json();
+            currentLat = p.coords.latitude;
+            currentLon = p.coords.longitude;
+            
+            await debounceReverseGeocode(currentLat, currentLon);
+            gpsBtn.innerHTML = "📍 Cek GPS";
+            const gpsFollowBtn = document.getElementById('gpsFollowBtn');
 
-                if (d.error) throw new Error(d.error);
+gpsFollowBtn.addEventListener('click', () => {
+  followGPS = !followGPS;
 
-                // --- LOGIKA PERAPIH ALAMAT ---
-                // LocationIQ memberikan 'display_name' yang sangat panjang.
-                // Kita ambil 3-4 bagian depannya saja agar pas di foto.
-                let addressParts = d.display_name.split(',');
-                
-                // Ambil maksimal 3 komponen pertama (misal: Nama Gedung, Jalan, Kecamatan)
-                let simpleAddress = addressParts.slice(0, 3).join(',').trim();
-                
-                // Masukkan ke kotak input
-                locInput.value = `${simpleAddress}\n(${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)})`;
-                
-                // Update canvas
-                draw();
-                gpsBtn.innerHTML = "📍 Cek GPS";
+  gpsFollowBtn.textContent = followGPS
+    ? "🧭 Ikuti GPS: ON"
+    : "🧭 Ikuti GPS: OFF";
 
-            } catch(e) {
-                console.error(e);
-                alert("Gagal mendeteksi lokasi: " + e.message);
-                gpsBtn.innerHTML = "📍 Cek GPS";
+  followGPS ? startFollowGPS() : stopFollowGPS();
+});
+
+            // Update posisi marker jika peta sedang terbuka
+            if (mapInstance) {
+                mapInstance.setView([currentLat, currentLon], 16);
+                if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
             }
         }, (err) => {
-            console.warn(err);
-            alert("Aktifkan GPS di HP kamu!");
+            alert("Gagal akses GPS. Pastikan izin lokasi aktif.");
             gpsBtn.innerHTML = "📍 Cek GPS";
-        }, {
-            enableHighAccuracy: true, // Pakai mode akurasi tinggi
-            timeout: 10000,
-            maximumAge: 0
+        }, { enableHighAccuracy: true });
+    });
+
+    // 3. LOGIKA PETA INTERAKTIF
+    const mapModal = document.getElementById('mapModal');
+    const closeMapBtn = document.getElementById('closeMapBtn');
+    // Ambil referensi ke tombol follow gps agar tidak error
+    const gpsFollowBtn = document.getElementById('gpsFollowBtn'); 
+
+    function initLeafletMap() {
+        if (mapInstance) return; // Jangan inisialisasi ulang jika sudah ada
+
+        mapInstance = L.map('mapContainer').setView([currentLat, currentLon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
+
+        // Tambah fitur Search (Pencarian)
+        const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
+            .on('markgeocode', function(e) {
+                const bbox = e.geocode.center;
+                // Pindahkan marker dan peta ke lokasi pencarian
+                mapInstance.setView([bbox.lat, bbox.lng], 16);
+                updateMarkerPosition(bbox.lat, bbox.lng);
+            })
+            .addTo(mapInstance);
+
+        // Klik pada peta untuk pilih lokasi
+        mapInstance.on('click', (e) => {
+            // Update marker
+            updateMarkerPosition(e.latlng.lat, e.latlng.lng);
+            // Opsional: Langsung pilih dan tutup modal (jika diinginkan)
+            // selectAndClose(e.latlng.lat, e.latlng.lng);
         });
-    });
-// --- PENCARIAN MANUAL LOKASI ---
-    let debT;
-    locInput.addEventListener('input', (e) => {
-        requestRender(); 
+    }
+
+    // Fungsi Helper untuk memindahkan marker
+    function updateMarkerPosition(lat, lon) {
+        currentLat = lat;
+        currentLon = lon;
         
-        const q = e.target.value.split('\n')[0]; 
-        if(q.length < 3) return; 
+        // Matikan follow GPS jika user memindahkan marker manual
+        followGPS = false;
+        stopFollowGPS();
+        if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
 
-        clearTimeout(debT);
-        debT = setTimeout(async() => {
-            try {
-                // Tambahkan '&addressdetails=1' untuk memastikan data lengkap
-                const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1`;
+        if (mapMarker) {
+            mapMarker.setLatLng([lat, lon]);
+        } else {
+            mapMarker = L.marker([lat, lon], { draggable: true }).addTo(mapInstance);
+            
+            // Event jika marker digeser manual (drag)
+            mapMarker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                currentLat = pos.lat;
+                currentLon = pos.lng;
                 
-                const r = await fetch(url);
-                const res = await r.json();
+                followGPS = false; 
+                stopFollowGPS();
+                if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
                 
-                suggestionsBox.innerHTML = '';
-                if (Array.isArray(res) && res.length > 0) {
-                    suggestionsBox.style.display = 'block';
-                    res.forEach(item => {
-                        const div = document.createElement('div');
-                        div.className = 'suggestion-item';
-                        // Tampilkan nama di list saran
-                        div.textContent = item.display_name; 
-                        
-                        div.onclick = () => {
-                            // --- LOGIKA BARU: MENGAMBIL LEBIH BANYAK DETAIL ---
-                            let parts = item.display_name.split(',');
+                // Update teks alamat di input utama
+                debounceReverseGeocode(currentLat, currentLon);
+            });
+        }
+        
+        // Update teks alamat di input utama (realtime saat klik peta)
+        debounceReverseGeocode(lat, lon);
+    }
 
-                            // Kita ambil 6 bagian pertama agar mencakup:
-                            // 1. Nama Gedung/Tempat
-                            // 2. Jalan & Nomor
-                            // 3. Desa/Kelurahan
-                            // 4. Kecamatan
-                            // 5. Kota/Kabupaten
-                            // 6. Provinsi
-                            // (Biasanya Kode Pos dan Negara ada di urutan belakang, jadi aman terpotong)
-                            let detailedName = parts.slice(0, 6).join(',').trim();
+    // Fungsi Final saat lokasi dipilih (bisa dipanggil via tombol OK atau Double Click jika mau dikembangkan)
+    function selectAndClose(lat, lon) {
+        updateMarkerPosition(lat, lon);
+        mapModal.style.display = 'none';
+    }
 
-                            // Masukkan ke input box
-                            locInput.value = `${detailedName}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
-                            
-                            suggestionsBox.style.display = 'none';
-                            requestRender();
-                        };
-                        suggestionsBox.appendChild(div);
-                    });
-                } else {
-                    suggestionsBox.style.display = 'none';
-                }
-            } catch(err) { }
-        }, 800); 
-    });
-    
-    document.addEventListener('click', e => { if(!e.target.closest('.location-wrapper')) suggestionsBox.style.display='none'; });
+    // --- EVENT LISTENERS TOMBOL PETA ---
 
-    window.adjustSize = (n) => { sizeSlider.value=parseInt(sizeSlider.value)+n; sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); };
-    sizeSlider.addEventListener('input', ()=>{ sizeValDisplay.textContent=sizeSlider.value+'px'; requestRender(); });
-    opacitySlider.addEventListener('input', ()=>{ opacityValDisplay.textContent=opacitySlider.value+'%'; requestRender(); });
-    [dtInput, fontColor, fontSelect, showDateToggle].forEach(e=>e.addEventListener('input', requestRender));
-    window.addEventListener('resize', ()=>{if(sourceImage) setupHighResCanvas();});
-    
-    resetViewBtn.addEventListener('click', ()=>{ if(imgLoaded){ viewScale=1; viewX=0; viewY=0; updateTransform(); stampX=canvas.width*0.05; stampY=canvas.height*0.9; draw(); } });
-    clearBtn.addEventListener('click', ()=>{ if(imgLoaded && confirm('Hapus?')) { sourceImage=null; imgLoaded=false; isNewFile=false; fileInput.value=''; cropMode=false; toggleCropBtn.textContent='✂ Potong'; toggleCropBtn.classList.remove('btn-danger'); toggleCropBtn.classList.add('btn-secondary'); draw(); } });
-
-    downloadFinalBtn.addEventListener('click', () => {
-        if(!imgLoaded) return;
-        draw();
-        const oT = downloadFinalBtn.textContent; downloadFinalBtn.textContent = '⏳...'; downloadFinalBtn.disabled = true;
-        (function c(q) {
-            canvas.toBlob(b => {
-                if(b.size>MAX_FILE_SIZE && q>0.1) c(q-0.05);
-                else {
-                    const l = document.createElement('a'); l.download=`Stamp_${Date.now()}.jpg`; l.href=URL.createObjectURL(b); l.click();
-                    downloadFinalBtn.textContent=oT; downloadFinalBtn.disabled=false;
-                }
-            }, 'image/jpeg', q);
-        })(1.0);
+    // 1. Tombol Buka Peta
+    document.getElementById('mapBtn').addEventListener('click', () => {
+        mapModal.style.display = 'flex';
+        
+        // Timeout agar render peta tidak abu-abu (bug leaflet di modal hidden)
+        setTimeout(() => {
+            initLeafletMap();
+            mapInstance.invalidateSize(); 
+            mapInstance.setView([currentLat, currentLon], 15);
+            updateMarkerPosition(currentLat, currentLon);
+        }, 300);
     });
 
-    draw(); 
-</script>
-
-
-
-
-
+    // 2. Tombol Tutup Peta (X)
+    closeMapBtn.addEventListener('click', () => {
+        mapModal.style.display = 'none';
+    });
+    
+  </script>
+	
+  
+	
 </body>
 </html>
+
+
+
+
+
+
+
+
