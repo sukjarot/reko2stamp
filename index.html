@@ -1108,98 +1108,123 @@ gpsFollowBtn.addEventListener('click', () => {
         mapModal.style.display = 'none';
     });
 	
-    // 6. PERBAIKAN: EVENT LISTENERS YANG HILANG
-    // (Tambahkan kode ini di bagian paling bawah blok <script>)
+// ==========================================
+// PERBAIKAN TOTAL EVENT LISTENERS
+// ==========================================
+    // --- 1. FUNGSI ADJUST SIZE (Tombol + / -) ---
+window.adjustSize = function(val) {
+    let current = parseInt(sizeSlider.value);
+    let newVal = current + val;
+    if (newVal < 20) newVal = 20;
+    if (newVal > 300) newVal = 300;
+    sizeSlider.value = newVal;
+    sizeValDisplay.textContent = newVal + 'px';
+    requestRender();
+};
+
+// --- 2. SLIDER & INPUT RESPONSIVE ---
+sizeSlider.addEventListener('input', (e) => {
+    sizeValDisplay.textContent = e.target.value + 'px';
+    requestRender();
+});
+
+opacitySlider.addEventListener('input', (e) => {
+    opacityValDisplay.textContent = e.target.value + '%';
+    requestRender();
+});
+
+// Update Tanggal, Jam, Lokasi, Font secara Realtime
+showDateToggle.addEventListener('change', requestRender);
+dtInput.addEventListener('input', requestRender);
+locInput.addEventListener('input', requestRender);
+fontSelect.addEventListener('change', requestRender);
+fontColor.addEventListener('input', requestRender);
+
+// --- 3. TOMBOL RESET (Mereset Posisi Teks & Zoom) ---
+resetViewBtn.addEventListener('click', () => {
+    // Reset Zoom Tampilan
+    viewScale = 1; 
+    viewX = 0; 
+    viewY = 0;
+    updateTransform();
+
+    // Reset Posisi Teks (Stamp) ke Kiri Bawah standar
+    if (imgLoaded) {
+        stampX = canvas.width * 0.05; 
+        stampY = canvas.height - (canvas.height * 0.1); 
+    }
+    requestRender();
+});
+
+// --- 4. TOMBOL HAPUS FOTO ---
+clearBtn.addEventListener('click', () => {
+    if(!confirm("Hapus foto ini?")) return;
+    sourceImage = null;
+    imgLoaded = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 300; 
+    canvas.height = 300;
+    draw();
+    fileInput.value = '';
+});
+
+// --- 5. TOMBOL SIMPAN (DENGAN AUTO-COMPRESS MAX 4MB) ---
+downloadFinalBtn.addEventListener('click', () => {
+    if (!imgLoaded) return alert("Belum ada foto untuk disimpan!");
     
-    // --- A. FUNGSI UNTUK TOMBOL +/- UKURAN FONT ---
-    // Fungsi ini dipanggil oleh onclick di HTML, jadi harus di window scope
-    window.adjustSize = function(val) {
-        let current = parseInt(sizeSlider.value);
-        let newVal = current + val;
-        // Batasan min/max sesuai slider HTML
-        if (newVal < 20) newVal = 20;
-        if (newVal > 300) newVal = 300;
-        
-        sizeSlider.value = newVal;
-        sizeValDisplay.textContent = newVal + 'px';
-        requestRender(); // Update gambar
+    let quality = 0.92; // Mulai dari kualitas sangat tinggi
+    let dataURL = canvas.toDataURL('image/jpeg', quality);
+    
+    // Fungsi hitung ukuran file dari Base64
+    const getFileSize = (base64String) => {
+        const stringLength = base64String.length - "data:image/jpeg;base64,".length;
+        return stringLength * (3 / 4);
     };
 
-    // --- B. LISTENER UNTUK SLIDER & INPUT (LIVE UPDATE) ---
+    let fileSize = getFileSize(dataURL);
+    const MAX_SIZE_BYTE = 4 * 1024 * 1024; // 4MB dalam Bytes
+
+    // Loop Kompresi: Jika > 4MB, turunkan kualitas 5% terus menerus
+    while (fileSize > MAX_SIZE_BYTE && quality > 0.1) {
+        quality -= 0.05;
+        dataURL = canvas.toDataURL('image/jpeg', quality);
+        fileSize = getFileSize(dataURL);
+    }
+
+    // Eksekusi Download
+    const timestamp = new Date().getTime();
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = `RekoStamp_${timestamp}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log(`Berhasil disimpan. Kualitas: ${Math.round(quality*100)}%, Ukuran: ${(fileSize/1024/1024).toFixed(2)} MB`);
+});
+
+// --- 6. TOMBOL PUTAR (ROTATE) ---
+rotateBtn.addEventListener('click', () => {
+    if (!imgLoaded) return;
     
-    // 1. Slider Ukuran Teks
-    sizeSlider.addEventListener('input', (e) => {
-        sizeValDisplay.textContent = e.target.value + 'px';
-        requestRender();
-    });
-
-    // 2. Slider Transparansi (Opacity)
-    opacitySlider.addEventListener('input', (e) => {
-        opacityValDisplay.textContent = e.target.value + '%';
-        requestRender();
-    });
-
-    // 3. Pengaturan Waktu & Toggle Tanggal
-    showDateToggle.addEventListener('change', requestRender);
-    dtInput.addEventListener('input', requestRender); // Update saat diketik/diganti
-
-    // 4. Input Lokasi (Ketik Manual)
-    locInput.addEventListener('input', requestRender);
-
-    // 5. Pengaturan Font & Warna
-    fontSelect.addEventListener('change', requestRender);
-    fontColor.addEventListener('input', requestRender);
-
-    // --- C. TOMBOL AKSI UTAMA ---
-
-    // 1. Tombol Reset View (Posisi & Zoom)
-    resetViewBtn.addEventListener('click', () => {
-        viewScale = 1; 
-        viewX = 0; 
-        viewY = 0;
-        updateTransform();
-    });
-
-    // 2. Tombol Hapus Foto
-    clearBtn.addEventListener('click', () => {
-        // Reset variabel
-        sourceImage = null;
-        imgLoaded = false;
-        isNewFile = false;
-        
-        // Bersihkan Canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.style.transform = 'none';
-        
-        // Kembalikan ukuran canvas ke default kecil
-        canvas.width = 300; 
-        canvas.height = 300;
-        draw(); // Akan menggambar teks "Pilih Foto Dulu"
-        
-        // Reset Input File agar bisa pilih file yang sama lagi jika mau
-        fileInput.value = '';
-    });
-
-    // 3. Tombol Simpan / Download
-    downloadFinalBtn.addEventListener('click', () => {
-        if (!imgLoaded) return alert("Belum ada foto untuk disimpan!");
-        
-        // Buat nama file unik berdasarkan waktu
-        const timestamp = new Date().getTime();
-        const fileName = `RekoStamp_${timestamp}.jpg`;
-
-        // Ambil data gambar dari canvas
-        // (Kualitas 0.9 = 90% agar tidak terlalu besar tapi tetap tajam)
-        const dataURL = canvas.toDataURL('image/jpeg', 0.9);
-
-        // Buat link download palsu dan klik otomatis
-        const link = document.createElement('a');
-        link.href = dataURL;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Tukar lebar dan tinggi
+    tempCanvas.width = canvas.height;
+    tempCanvas.height = canvas.width;
+    
+    tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+    tempCtx.rotate(Math.PI / 2);
+    tempCtx.drawImage(sourceImage, -canvas.width / 2, -canvas.height / 2);
+    
+    sourceImage = new Image();
+    sourceImage.onload = () => {
+        isUsingCanvasSource = false;
+        setupHighResCanvas();
+    };
+    sourceImage.src = tempCanvas.toDataURL('image/jpeg', 1.0);
+});
     
   </script>
 	
@@ -1207,6 +1232,7 @@ gpsFollowBtn.addEventListener('click', () => {
 	
 </body>
 </html>
+
 
 
 
