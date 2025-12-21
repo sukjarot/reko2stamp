@@ -277,6 +277,9 @@
             <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
                 📍 Cek GPS
             </button>
+          <button id="gpsFollowBtn" class="gps-btn">
+  🧭 Ikuti GPS: OFF
+</button>
             <button id="mapBtn" class="map-btn-style" title="Lihat Peta">
                 🗺️ Cek Peta
             </button>
@@ -912,9 +915,23 @@
     let mapInstance = null;
     let mapMarker = null;
     let currentLat = -7.605, currentLon = 111.905; // Koordinat default
+    let gpsWatchId = null;
+let followGPS = false;
+// ===============================
+// DEBOUNCE REVERSE GEOCODING
+// ===============================
+let debounceTimer = null;
 
+function debounceReverseGeocode(lat, lon, delay = 700) {
+  if (debounceTimer) clearTimeout(debounceTimer);
+
+  debounceTimer = setTimeout(() => {
+    reverseGeocode(lat, lon);
+  }, delay);
+}
+    
     // 1. FUNGSI AMBIL ALAMAT (REVERSE GEOCODING)
-    async function updateAddressField(lat, lon) {
+    async function reverseGeocode(lat, lon) {
         locInput.value = "⏳ Mengambil alamat...";
         requestRender();
 
@@ -935,6 +952,36 @@
         }
         requestRender();
     }
+    function startFollowGPS() {
+  if (!navigator.geolocation) {
+    alert("GPS tidak didukung");
+    return;
+  }
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      currentLat = pos.coords.latitude;
+      currentLon = pos.coords.longitude;
+
+      if (mapInstance) {
+        mapInstance.setView([currentLat, currentLon], 17);
+        if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
+      }
+
+      debounceReverseGeocode(currentLat, currentLon);
+    },
+    () => alert("Gagal akses GPS"),
+    { enableHighAccuracy: true }
+  );
+}
+
+function stopFollowGPS() {
+  if (gpsWatchId) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+}
+
 
     // 2. LOGIKA TOMBOL GPS
     gpsBtn.addEventListener('click', () => {
@@ -945,9 +992,20 @@
             currentLat = p.coords.latitude;
             currentLon = p.coords.longitude;
             
-            await updateAddressField(currentLat, currentLon);
+            await debounceReverseGeocode(currentLat, currentLon);
             gpsBtn.innerHTML = "📍 Cek GPS";
-            
+            const gpsFollowBtn = document.getElementById('gpsFollowBtn');
+
+gpsFollowBtn.addEventListener('click', () => {
+  followGPS = !followGPS;
+
+  gpsFollowBtn.textContent = followGPS
+    ? "🧭 Ikuti GPS: ON"
+    : "🧭 Ikuti GPS: OFF";
+
+  followGPS ? startFollowGPS() : stopFollowGPS();
+});
+
             // Update posisi marker jika peta sedang terbuka
             if (mapInstance) {
                 mapInstance.setView([currentLat, currentLon], 16);
@@ -988,13 +1046,22 @@
         currentLon = lon;
         
         if (mapMarker) mapMarker.setLatLng([lat, lon]);
-        else mapMarker = L.marker([lat, lon]).addTo(mapInstance);
+        else {
+  mapMarker = L.marker([lat, lon], { draggable: true }).addTo(mapInstance);
 
-        if (confirm("Pilih lokasi ini?")) {
-            mapModal.style.display = 'none';
-            updateAddressField(lat, lon);
-        }
-    }
+  mapMarker.on('dragend', (e) => {
+  const pos = e.target.getLatLng();
+  currentLat = pos.lat;
+  currentLon = pos.lng;
+
+  // 🛑 MATIKAN MODE FOLLOW
+  followGPS = false;
+  stopFollowGPS();
+  if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+
+  debounceReverseGeocode(currentLat, currentLon);
+});
+
 
     // Tombol Buka Peta
     document.getElementById('mapBtn').addEventListener('click', () => {
@@ -1007,9 +1074,16 @@
             mapInstance.setView([currentLat, currentLon], 15);
             
             if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
-            else mapMarker = L.marker([currentLat, currentLon]).addTo(mapInstance);
-        }, 300);
-    });
+            else {
+  mapMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(mapInstance);
+
+  mapMarker.on('dragend', (e) => {
+    const pos = e.target.getLatLng();
+    currentLat = pos.lat;
+    currentLon = pos.lng;
+    debounceReverseGeocode(currentLat, currentLon);
+  });
+}
 
     closeMapBtn.addEventListener('click', () => {
         mapModal.style.display = 'none';
@@ -1021,6 +1095,7 @@
 	
 </body>
 </html>
+
 
 
 
