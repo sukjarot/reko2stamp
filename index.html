@@ -103,6 +103,35 @@
       margin-top: 8px; width: 100%;
     }
     .gps-btn:hover { background: var(--success); color: white; }
+    /* --- PENAMBAHAN CSS TOMBOL PETA & GRUP --- */
+    .location-btn-group {
+      display: flex;
+      gap: 10px; /* Jarak antar tombol */
+      margin-top: 8px;
+    }
+    /* Agar kedua tombol berbagi ruang yang sama */
+    .location-btn-group .gps-btn, 
+    .location-btn-group .map-btn-style {
+      flex: 1;
+      margin-top: 0 !important; /* Reset margin lama */
+    }
+    /* Gaya khusus warna biru untuk tombol peta */
+    .map-btn-style {
+        background: rgba(59, 130, 246, 0.2); color: var(--primary);
+        border: 1px solid var(--primary);
+        padding: 8px 12px; border-radius: 6px; font-size: 13px; cursor: pointer;
+        font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;
+        width: 100%;
+    }
+    .map-btn-style:hover { background: var(--primary); color: white; }
+    
+    /* CSS untuk tombol close di dalam modal peta */
+    .close-map-overlay-btn {
+      position: absolute; top: 20px; right: 20px; z-index: 10001;
+      background: rgba(0,0,0,0.6); color: white; border: none;
+      width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer;
+    }
+    /* --- AKHIR PENAMBAHAN CSS --- */
 
     /* TOGGLE SWITCH */
     .toggle-row {
@@ -234,11 +263,14 @@
             <textarea id="locInput" rows="3" placeholder="Ketik lokasi atau klik tombol GPS..."></textarea>
             <div id="suggestions" class="suggestions-list"></div>
         </div>
-        <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
-            📍 Cek GPS
-        </button>
-        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">*By AyaheDira</div>
-      </div>
+        <div class="location-btn-group">
+            <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
+                📍 Cek GPS
+            </button>
+            <button id="mapBtn" class="map-btn-style" title="Lihat Peta">
+                🗺️ Cek Peta
+            </button>
+        </div>
 
       <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
         <div>
@@ -880,7 +912,54 @@
                 
                 // Masukkan ke kotak input
                 locInput.value = `${simpleAddress}\n(${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)})`;
-                
+                // --- PENAMBAHAN LOGIKA TOMBOL PETA & MODAL ---
+    const mapBtn = document.getElementById('mapBtn');
+    const mapModal = document.getElementById('mapModal');
+    const closeMapBtn = document.getElementById('closeMapBtn');
+    const mapFrame = document.getElementById('mapFrame');
+    
+    // Koordinat default (jika GPS belum ditekan) - diset ke area sekitar Nganjuk sesuai gambar referensi
+    let lastKnownLat = -7.605; 
+    let lastKnownLon = 111.905;
+
+    // Update fungsi GPS yang sudah ada untuk menyimpan koordinat terakhir
+    const originalGpsSuccess = navigator.geolocation.getCurrentPosition;
+    navigator.geolocation.getCurrentPosition = function(success, error, options) {
+        originalGpsSuccess.call(this, (p) => {
+            // Simpan koordinat saat berhasil dapat GPS
+            lastKnownLat = p.coords.latitude;
+            lastKnownLon = p.coords.longitude;
+            success(p); // Lanjutkan fungsi asli
+        }, error, options);
+    };
+
+    // Event Listener Tombol Cek Peta
+    mapBtn.addEventListener('click', () => {
+        // Buka modal
+        mapModal.style.display = 'flex';
+        mapBtn.textContent = '⏳ Memuat...';
+        
+        // Siapkan URL Embed OpenStreetMap
+        // Kita buat bounding box (kotak area) kecil di sekitar koordinat
+        const offset = 0.008; // Semakin kecil nilainya, semakin zoom-in
+        const bbox = `${lastKnownLon - offset},${lastKnownLat - offset},${lastKnownLon + offset},${lastKnownLat + offset}`;
+        // URL embed dengan marker di tengah
+        const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lastKnownLat},${lastKnownLon}`;
+        
+        // Set src iframe untuk memuat peta
+        mapFrame.src = mapUrl;
+
+        // Kembalikan teks tombol setelah beberapa saat
+        setTimeout(() => { mapBtn.innerHTML = '🗺️ Cek Peta'; }, 2000);
+    });
+
+    // Event Listener Tutup Modal Peta
+    closeMapBtn.addEventListener('click', () => {
+        mapModal.style.display = 'none';
+        // Kosongkan src agar tidak memakan memori saat ditutup
+        mapFrame.src = 'about:blank';
+    });
+    // --- AKHIR PENAMBAHAN JAVASCRIPT PETA ---
                 // Update canvas
                 draw();
                 gpsBtn.innerHTML = "📍 Cek GPS";
@@ -983,10 +1062,14 @@
 
     draw(); 
 </script>
-
-
-
-
-
+  html
+  <div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
+    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column;">
+       <div style="padding: 10px; text-align: center; font-weight: bold; border-bottom: 1px solid #334155;">Peta Lokasi</div>
+       <button id="closeMapBtn" class="close-map-overlay-btn">❌</button>
+       <iframe id="mapFrame" width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" style="flex-grow: 1; border:0; background: #ddd;"></iframe>
+    </div>
+  </div>
 </body>
 </html>
+
