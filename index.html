@@ -347,6 +347,23 @@
       <button id="switchCamBtn" class="cam-action-btn" title="Ganti Kamera">🔄</button>
     </div>
   </div>
+
+// --- MAPMODAL ---
+<div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
+    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column;">
+       
+       <div style="padding: 10px; display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-bottom: 1px solid #334155;">
+          <span style="font-weight: bold; color: white;">Pilih Lokasi di Peta</span>
+          <button id="closeMapBtn" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">❌</button>
+       </div>
+
+       <div id="mapContainer" style="flex-grow: 1; width: 100%; background: #ddd;"></div>
+       
+       <div style="padding:8px; background:#0f172a; text-align:center; font-size:12px; color:#94a3b8;">
+         🔍 Cari lokasi atau 👆 Klik di peta untuk memilih tempat.
+       </div>
+    </div>
+  </div>	
   
   <script>
     // --- PENDAFTARAN SERVICE WORKER (PWA) ---
@@ -1000,24 +1017,12 @@
     });
 							
 </script>
-html
-  <div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
-    <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column;">
-       
-       <div style="padding: 10px; display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-bottom: 1px solid #334155;">
-          <span style="font-weight: bold; color: white;">Pilih Lokasi di Peta</span>
-          <button id="closeMapBtn" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">❌</button>
-       </div>
-
-       <div id="mapContainer" style="flex-grow: 1; width: 100%; background: #ddd;"></div>
-       
-       <div style="padding:8px; background:#0f172a; text-align:center; font-size:12px; color:#94a3b8;">
-         🔍 Cari lokasi atau 👆 Klik di peta untuk memilih tempat.
-       </div>
-    </div>
-  </div>
+	
+  
+	
 </body>
 </html>
+
 
 
 
