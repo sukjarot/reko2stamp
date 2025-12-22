@@ -2,7 +2,7 @@ const CACHE_NAME = 'reko-stamp-v2.5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './icon.png',
+  './icon ultimate.png',
   './manifest.json'
   // Jika Anda mendownload font secara lokal, masukkan file font di sini (misal: './font/roboto.ttf')
 ];
@@ -50,4 +50,5 @@ self.addEventListener('fetch', (event) => {
       return response || fetch(event.request);
     })
   );
+
 });
