@@ -385,7 +385,12 @@
     const showDateToggle = document.getElementById('showDateToggle');
     const locInput = document.getElementById('locInput');
     const gpsBtn = document.getElementById('gpsBtn');
+	const gpsFollowBtn = document.getElementById('gpsFollowBtn');
     const suggestionsBox = document.getElementById('suggestions');
+	  // ===============================
+// AUTOCOMPLETE LOKASI (SEARCH)
+// ===============================
+let searchDebounce = null;
 
     const sizeSlider = document.getElementById('sizeSlider');
     const sizeValDisplay = document.getElementById('sizeVal');
@@ -801,6 +806,12 @@
     }, {passive: false});
 
     canvasContainer.addEventListener('touchend', handleEnd);
+	  document.addEventListener("click", (e) => {
+  if (!e.target.closest(".location-wrapper")) {
+    suggestionsBox.style.display = "none";
+  }
+});
+
 
     // MOUSE
     canvasContainer.addEventListener('mousedown', (e) => { if(!imgLoaded) return; handleStart(e.clientX, e.clientY); });
@@ -917,6 +928,7 @@
     let currentLat = -7.605, currentLon = 111.905; // Koordinat default
     let gpsWatchId = null;
 let followGPS = false;
+	  
 // ===============================
 // DEBOUNCE REVERSE GEOCODING
 // ===============================
@@ -929,29 +941,90 @@ function debounceReverseGeocode(lat, lon, delay = 700) {
     reverseGeocode(lat, lon);
   }, delay);
 }
-    
-    // 1. FUNGSI AMBIL ALAMAT (REVERSE GEOCODING)
-    async function reverseGeocode(lat, lon) {
-        locInput.value = "⏳ Mengambil alamat...";
-        requestRender();
+	  
+// ==========================================
+// FORWARD GEOCODING (AUTOCOMPLETE LOKASI)
+// ==========================================
+async function searchLocation(query) {
+  try {
+    const url =
+      `https://us1.locationiq.com/v1/search.php` +
+      `?key=${LOCATIONIQ_KEY}` +
+      `&q=${encodeURIComponent(query)}` +
+      `&format=json` +
+      `&limit=5`;
 
-        try {
-            const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json`;
-            const response = await fetch(url);
-            const data = await response.json();
+    const response = await fetch(url);
+    const results = await response.json();
 
-            if (data.error) throw new Error(data.error);
-
-            // Perapi Alamat (Ambil 4 bagian pertama)
-            let parts = data.display_name.split(',');
-            let cleanAddress = parts.slice(0, 4).join(',').trim();
-            
-            locInput.value = `${cleanAddress}\n(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-        } catch (e) {
-            locInput.value = `Lokasi: (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-        }
-        requestRender();
+    if (!Array.isArray(results)) {
+      suggestionsBox.style.display = "none";
+      return;
     }
+
+    suggestionsBox.innerHTML = "";
+
+    results.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.textContent = item.display_name;
+
+      div.onclick = () => {
+		  followGPS = false;
+stopFollowGPS();
+gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+
+        locInput.value =
+          `${item.display_name}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
+
+        suggestionsBox.style.display = "none";
+        requestRender();
+
+        currentLat = parseFloat(item.lat);
+        currentLon = parseFloat(item.lon);
+
+        if (mapInstance) {
+          mapInstance.setView([currentLat, currentLon], 16);
+          if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
+        }
+      };
+
+      suggestionsBox.appendChild(div);
+    });
+
+    suggestionsBox.style.display = "block";
+
+  } catch (err) {
+    console.error("Autocomplete error:", err);
+    suggestionsBox.style.display = "none";
+  }
+}
+
+            async function reverseGeocode(lat, lon) {
+  try {
+    const url =
+      `https://us1.locationiq.com/v1/reverse.php` +
+      `?key=${LOCATIONIQ_KEY}` +
+      `&lat=${lat}` +
+      `&lon=${lon}` +
+      `&format=json`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.display_name) throw "No address";
+
+    const parts = data.display_name.split(',');
+    const cleanAddress = parts.slice(0, 4).join(',').trim();
+
+    locInput.value = `${cleanAddress}\n(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+  } catch {
+    locInput.value = `(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+  }
+
+  requestRender();
+}
+
     function startFollowGPS() {
   if (!navigator.geolocation) {
     alert("GPS tidak didukung");
@@ -985,6 +1058,10 @@ function stopFollowGPS() {
 
     // 2. LOGIKA TOMBOL GPS
     gpsBtn.addEventListener('click', () => {
+		followGPS = false;
+stopFollowGPS();
+gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+
         if (!navigator.geolocation) return alert("GPS tidak didukung");
         
         gpsBtn.innerHTML = "⏳ Mencari...";
@@ -994,18 +1071,7 @@ function stopFollowGPS() {
             
             await debounceReverseGeocode(currentLat, currentLon);
             gpsBtn.innerHTML = "📍 Cek GPS";
-            const gpsFollowBtn = document.getElementById('gpsFollowBtn');
-
-gpsFollowBtn.addEventListener('click', () => {
-  followGPS = !followGPS;
-
-  gpsFollowBtn.textContent = followGPS
-    ? "🧭 Ikuti GPS: ON"
-    : "🧭 Ikuti GPS: OFF";
-
-  followGPS ? startFollowGPS() : stopFollowGPS();
-});
-
+            
             // Update posisi marker jika peta sedang terbuka
             if (mapInstance) {
                 mapInstance.setView([currentLat, currentLon], 16);
@@ -1017,12 +1083,28 @@ gpsFollowBtn.addEventListener('click', () => {
         }, { enableHighAccuracy: true });
     });
 
+// ==================================================
+// EVENT LISTENER FOLLOW GPS (REAL-TIME)
+// ==================================================
+gpsFollowBtn.addEventListener('click', () => {
+  followGPS = !followGPS;
+
+  gpsFollowBtn.textContent = followGPS
+    ? "🧭 Ikuti GPS: ON"
+    : "🧭 Ikuti GPS: OFF";
+
+  if (followGPS) {
+    startFollowGPS();
+  } else {
+    stopFollowGPS();
+  }
+});
+
+
     // 3. LOGIKA PETA INTERAKTIF
     const mapModal = document.getElementById('mapModal');
     const closeMapBtn = document.getElementById('closeMapBtn');
     // Ambil referensi ke tombol follow gps agar tidak error
-    const gpsFollowBtn = document.getElementById('gpsFollowBtn'); 
-
     function initLeafletMap() {
         if (mapInstance) return; // Jangan inisialisasi ulang jika sudah ada
 
@@ -1099,14 +1181,21 @@ gpsFollowBtn.addEventListener('click', () => {
             initLeafletMap();
             mapInstance.invalidateSize(); 
             mapInstance.setView([currentLat, currentLon], 15);
-            updateMarkerPosition(currentLat, currentLon);
-        }, 300);
-    });
+            if (mapMarker) {
+  mapMarker.setLatLng([currentLat, currentLon]);
+} else {
+  mapMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(mapInstance);
+}
+
 
     // 2. Tombol Tutup Peta (X)
     closeMapBtn.addEventListener('click', () => {
-        mapModal.style.display = 'none';
-    });
+    followGPS = false;
+    stopFollowGPS();
+    gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+    mapModal.style.display = 'none';
+});
+
 	
 // ==========================================
 // PERBAIKAN TOTAL EVENT LISTENERS
@@ -1136,10 +1225,43 @@ opacitySlider.addEventListener('input', (e) => {
 // Update Tanggal, Jam, Lokasi, Font secara Realtime
 showDateToggle.addEventListener('change', requestRender);
 dtInput.addEventListener('input', requestRender);
-locInput.addEventListener('input', requestRender);
+locInput.addEventListener("input", () => {
+  // 1️⃣ Matikan Follow GPS saat user mulai mengetik
+  followGPS = false;
+  stopFollowGPS();
+  gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+
+  // 2️⃣ Render teks ke canvas
+  requestRender();
+
+  // 3️⃣ Ambil query baris pertama + sanitasi
+  const query = locInput.value
+    .split('\n')[0]
+    .replace(/[^\w\s.,-]/gi, '')
+    .trim();
+
+  // 4️⃣ Validasi panjang minimal
+  if (query.length < 3) {
+    suggestionsBox.style.display = "none";
+    suggestionsBox.innerHTML = "";
+    return;
+  }
+
+  // 5️⃣ Debounce pencarian
+  if (searchDebounce) clearTimeout(searchDebounce);
+
+  searchDebounce = setTimeout(() => {
+    searchLocation(query);
+  }, 500);
+});
+
 fontSelect.addEventListener('change', requestRender);
 fontColor.addEventListener('input', requestRender);
 
+locInput.addEventListener("scroll", () => {
+  suggestionsBox.style.display = "none";
+});
+          
 // --- 3. TOMBOL RESET (Mereset Posisi Teks & Zoom) ---
 resetViewBtn.addEventListener('click', () => {
     // Reset Zoom Tampilan
@@ -1232,6 +1354,7 @@ rotateBtn.addEventListener('click', () => {
 	
 </body>
 </html>
+
 
 
 
