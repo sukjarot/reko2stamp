@@ -1181,11 +1181,25 @@ gpsFollowBtn.addEventListener('click', () => {
             initLeafletMap();
             mapInstance.invalidateSize(); 
             mapInstance.setView([currentLat, currentLon], 15);
+            
             if (mapMarker) {
-  mapMarker.setLatLng([currentLat, currentLon]);
-} else {
-  mapMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(mapInstance);
-}
+                mapMarker.setLatLng([currentLat, currentLon]);
+            } else {
+                mapMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(mapInstance);
+                
+                // Tambahkan event dragend disini agar marker baru pun bisa didrag
+                mapMarker.on('dragend', (e) => {
+                    const pos = e.target.getLatLng();
+                    currentLat = pos.lat;
+                    currentLon = pos.lng;
+                    followGPS = false; 
+                    stopFollowGPS();
+                    if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+                    debounceReverseGeocode(currentLat, currentLon);
+                });
+            }
+        }, 200); // Tutup setTimeout
+    }); // Tutup addEventListener mapBtn
 
 
     // 2. Tombol Tutup Peta (X)
@@ -1325,28 +1339,7 @@ downloadFinalBtn.addEventListener('click', () => {
     console.log(`Berhasil disimpan. Kualitas: ${Math.round(quality*100)}%, Ukuran: ${(fileSize/1024/1024).toFixed(2)} MB`);
 });
 
-// --- 6. TOMBOL PUTAR (ROTATE) ---
-rotateBtn.addEventListener('click', () => {
-    if (!imgLoaded) return;
-    
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    // Tukar lebar dan tinggi
-    tempCanvas.width = canvas.height;
-    tempCanvas.height = canvas.width;
-    
-    tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
-    tempCtx.rotate(Math.PI / 2);
-    tempCtx.drawImage(sourceImage, -canvas.width / 2, -canvas.height / 2);
-    
-    sourceImage = new Image();
-    sourceImage.onload = () => {
-        isUsingCanvasSource = false;
-        setupHighResCanvas();
-    };
-    sourceImage.src = tempCanvas.toDataURL('image/jpeg', 1.0);
-});
+
     
   </script>
 	
@@ -1354,6 +1347,7 @@ rotateBtn.addEventListener('click', () => {
 	
 </body>
 </html>
+
 
 
 
