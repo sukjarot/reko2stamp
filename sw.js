@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   // Jika Anda mendownload font secara lokal, masukkan file font di sini (misal: './font/roboto.ttf')
 ];
 
+
 // 1. Install Service Worker & Cache File
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -52,3 +53,4 @@ self.addEventListener('fetch', (event) => {
   );
 
 });
+
