@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Reko2stamp-Ultimate (2.5)</title>
+  <title>Reko2stamp-Ultimate (2.5 Fixed)</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon ultimate.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;600&family=Montserrat:wght@500;700&family=Oswald:wght@500&family=Roboto:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   
   <style>
     /* Fix tampilan control pencarian agar tidak tertutup */
@@ -41,26 +41,22 @@
     }
 
     header { 
-      height: 50px; /* Sedikit dipertinggi agar cahaya neon leluasa */
+      height: 50px; 
       background: var(--bg-panel); 
       border-bottom: 1px solid #334155;
       display: flex; align-items: center; justify-content: center;
       z-index: 50;
-      
-      /* --- EFEK NEON FUTURISTIK (VERSI SANS SERIF) --- */
-      font-family: 'Montserrat', sans-serif; /* Menggunakan font sans-serif tebal */
-      font-weight: 700; /* Wajib tebal (Bold) agar pendaran neon terlihat jelas */
-      font-size: 24px;  /* Sedikit disesuaikan agar proporsional */
+      font-family: 'Montserrat', sans-serif; 
+      font-weight: 700; 
+      font-size: 24px;  
       color: #e0f2fe;   
-      letter-spacing: 1.5px; /* Jarak antar huruf diperlebar agar terlihat mewah */
+      letter-spacing: 1.5px; 
       text-transform: capitalize;
-      
-      /* Racikan Bayangan Neon Biru (Cyan) */
       text-shadow: 
-          0 0 5px  rgba(6, 182, 212, 0.8),   /* Glow tajam dekat */
-          0 0 10px rgba(6, 182, 212, 0.6),   /* Glow menyebar */
-          0 0 20px rgba(59, 130, 246, 0.4),  /* Aura biru luar */
-          0 0 40px rgba(59, 130, 246, 0.2);  /* Atmosfer redup */
+          0 0 5px  rgba(6, 182, 212, 0.8),   
+          0 0 10px rgba(6, 182, 212, 0.6),   
+          0 0 20px rgba(59, 130, 246, 0.4),  
+          0 0 40px rgba(59, 130, 246, 0.2);  
     }
 
     main { display: flex; flex-direction: row; height: calc(100vh - 50px); }
@@ -113,19 +109,17 @@
       margin-top: 8px; width: 100%;
     }
     .gps-btn:hover { background: var(--success); color: white; }
-    /* --- PENAMBAHAN CSS TOMBOL PETA & GRUP --- */
+    
     .location-btn-group {
       display: flex;
-      gap: 10px; /* Jarak antar tombol */
+      gap: 10px; 
       margin-top: 8px;
     }
-    /* Agar kedua tombol berbagi ruang yang sama */
     .location-btn-group .gps-btn, 
     .location-btn-group .map-btn-style {
       flex: 1;
-      margin-top: 0 !important; /* Reset margin lama */
+      margin-top: 0 !important; 
     }
-    /* Gaya khusus warna biru untuk tombol peta */
     .map-btn-style {
         background: rgba(59, 130, 246, 0.2); color: var(--primary);
         border: 1px solid var(--primary);
@@ -135,13 +129,11 @@
     }
     .map-btn-style:hover { background: var(--primary); color: white; }
     
-    /* CSS untuk tombol close di dalam modal peta */
     .close-map-overlay-btn {
       position: absolute; top: 20px; right: 20px; z-index: 10001;
       background: rgba(0,0,0,0.6); color: white; border: none;
       width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; cursor: pointer;
     }
-    /* --- AKHIR PENAMBAHAN CSS --- */
 
     /* TOGGLE SWITCH */
     .toggle-row {
@@ -202,7 +194,7 @@
       }
     }
 
-    /* CSS KAMERA */
+    /* CSS KAMERA & MODAL */
     .input-group-row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
     }
@@ -277,13 +269,14 @@
             <button id="gpsBtn" class="gps-btn" title="Gunakan Lokasi Saat Ini">
                 📍 Cek GPS
             </button>
-          <button id="gpsFollowBtn" class="gps-btn">
-  🧭 Ikuti GPS: OFF
-</button>
+            <button id="gpsFollowBtn" class="gps-btn">
+                🧭 Ikuti GPS: OFF
+            </button>
             <button id="mapBtn" class="map-btn-style" title="Lihat Peta">
                 🗺️ Cek Peta
             </button>
         </div>
+      </div>
 
       <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
         <div>
@@ -333,6 +326,13 @@
       <button id="clearBtn" class="main-btn btn-danger" style="margin-top: 10px; margin-bottom: 10px;">🗑 Hapus Foto</button>
 
       <button id="downloadFinal" class="main-btn btn-primary">⬇ Simpan (Max 4MB)</button>
+      
+      <button id="storageBtn" class="main-btn btn-secondary" style="margin-top: 10px; background: #64748b; border: 1px solid #94a3b8;">
+        ⚙️ Setup Folder & Nama File
+      </button>
+      <div id="storageInfo" style="font-size: 10px; color: #94a3b8; text-align: center; margin-top: 5px; display: none;">
+        📂 Folder Aktif: <span id="activeFolderLabel">-</span>
+      </div>
     </aside>
 
     <section class="canvas-wrap" id="canvasContainer">
@@ -342,7 +342,6 @@
   
   <div id="cameraModal" class="camera-modal">
     <video id="cameraVideo" class="camera-view" autoplay playsinline></video>
-    
     <div class="camera-controls">
       <button id="closeCamBtn" class="cam-action-btn" title="Tutup">❌</button>
       <button id="rotateCamBtn" class="cam-action-btn" title="Putar Kamera">⤵️</button>
@@ -351,21 +350,64 @@
     </div>
   </div>
 
-<div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
+  <div id="mapModal" class="camera-modal" style="z-index: 10000; background: #1e293b;">
     <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column;">
-       
        <div style="padding: 10px; display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-bottom: 1px solid #334155;">
           <span style="font-weight: bold; color: white;">Pilih Lokasi di Peta</span>
           <button id="closeMapBtn" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">❌</button>
        </div>
-
        <div id="mapContainer" style="flex-grow: 1; width: 100%; background: #ddd;"></div>
-       
        <div style="padding:8px; background:#0f172a; text-align:center; font-size:12px; color:#94a3b8;">
          🔍 Cari lokasi atau 👆 Klik di peta untuk memilih tempat.
        </div>
     </div>
-  </div>	
+  </div>
+
+  <div id="storageModal" class="camera-modal" style="z-index: 12000; background: #1e293b; display: none;">
+    <div style="padding: 20px; width: 100%; max-width: 400px; margin: auto; display: flex; flex-direction: column; gap: 15px;">
+      
+      <h3 style="color: white; margin: 0; text-align: center; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+        Pengaturan Penyimpanan
+      </h3>
+
+      <div>
+        <label style="color: #94a3b8; display: block; margin-bottom: 5px;">1. Pilih Folder Tujuan</label>
+        <button id="pickDirBtn" class="file-btn" style="background: linear-gradient(45deg, #f59e0b, #d97706);">
+          📂 Set Folder Penyimpanan
+        </button>
+        <small id="dirStatus" style="color: #cbd5e1; display: block; margin-top: 5px; font-style: italic;">
+          Belum ada folder dipilih (Mode Download Biasa)
+        </small>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+        <div>
+          <label>2. Awalan Nama File</label>
+          <input type="text" id="filePrefix" value="RekoStamp_" placeholder="Contoh: DOC_">
+        </div>
+        <div>
+          <label>Urutan</label>
+          <input type="number" id="fileCounter" value="1" min="1">
+        </div>
+      </div>
+
+      <div style="background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155;">
+        <label style="color: #10b981; font-size: 0.8rem;">Pratinjau Nama File:</label>
+        <div id="filenamePreview" style="color: #fff; font-family: monospace; font-size: 1.1rem; margin-top: 5px;">
+          RekoStamp_001.jpg
+        </div>
+      </div>
+
+      <div class="action-grid" style="margin-top: 10px;">
+        <button id="saveSettingsBtn" class="main-btn btn-primary">✅ Simpan & Tutup</button>
+        <button id="cancelSettingsBtn" class="main-btn btn-danger">❌ Batal</button>
+      </div>
+
+      <small style="color: #64748b; font-size: 10px; text-align: center;">
+        *Fitur ini memerlukan izin browser (File System API) dan HTTPS.
+      </small>
+    </div>
+  </div>
   
   <script>
     // --- PENDAFTARAN SERVICE WORKER (PWA) ---
@@ -378,19 +420,19 @@
     }
     
     // --- 1. INISIALISASI VARIABEL GLOBAL ---
-    // --- MASUKKAN TOKEN DARI LOCATIONIQ DI SINI ---
     const LOCATIONIQ_KEY = 'pk.9415d0e1f42e8b4c9b6d9be7be2f5108';
     const fileInput = document.getElementById('fileInput');
     const dtInput = document.getElementById('dtInput');
     const showDateToggle = document.getElementById('showDateToggle');
     const locInput = document.getElementById('locInput');
     const gpsBtn = document.getElementById('gpsBtn');
-	const gpsFollowBtn = document.getElementById('gpsFollowBtn');
+    const gpsFollowBtn = document.getElementById('gpsFollowBtn');
     const suggestionsBox = document.getElementById('suggestions');
-	  // ===============================
-// AUTOCOMPLETE LOKASI (SEARCH)
-// ===============================
-let searchDebounce = null;
+    
+    // ===============================
+    // AUTOCOMPLETE LOKASI (SEARCH)
+    // ===============================
+    let searchDebounce = null;
 
     const sizeSlider = document.getElementById('sizeSlider');
     const sizeValDisplay = document.getElementById('sizeVal');
@@ -520,7 +562,6 @@ let searchDebounce = null;
 
             // HANDLES (Visual Box)
             ctx.setLineDash([]);
-            // Kita pakai VISUAL_HANDLE_SIZE di sini agar tampilan tetap rapi (tidak terlalu besar)
             const vHandle = VISUAL_HANDLE_SIZE / viewScale; 
             const halfH = vHandle / 2;
             
@@ -602,24 +643,16 @@ let searchDebounce = null;
         draw();
     }
 
-    // --- 4. INTERAKSI TOUCH (UPDATED HIT REGION) ---
-    
+    // --- 4. INTERAKSI TOUCH ---
     function getHitRegion(x, y) {
         if (!cropRect) return null;
         
-        // PENGATURAN TOLERANSI SENTUH (SANGAT PENTING UNTUK HP)
-        // Kita pakai TOUCH_HANDLE_SIZE agar area deteksinya luas
         const hitSize = (TOUCH_HANDLE_SIZE / viewScale); 
         const halfHit = hitSize / 2;
         
-        const l = cropRect.x;
-        const cX = cropRect.x + cropRect.w / 2;
-        const r = cropRect.x + cropRect.w;
-        const t = cropRect.y;
-        const cY = cropRect.y + cropRect.h / 2;
-        const b = cropRect.y + cropRect.h;
+        const l = cropRect.x; const cX = cropRect.x + cropRect.w / 2; const r = cropRect.x + cropRect.w;
+        const t = cropRect.y; const cY = cropRect.y + cropRect.h / 2; const b = cropRect.y + cropRect.h;
 
-        // Cek apakah koordinat (x,y) masuk dalam kotak imajiner handle
         const check = (tx, ty) => {
             return (x >= tx - halfHit && x <= tx + halfHit && y >= ty - halfHit && y <= ty + halfHit);
         };
@@ -635,7 +668,6 @@ let searchDebounce = null;
         if (check(l, b)) return 'sw';
         if (check(l, cY)) return 'w';
 
-        // Cek Move (Badan)
         if (x > l && x < r && y > t && y < b) return 'move';
 
         return null;
@@ -648,133 +680,130 @@ let searchDebounce = null;
         return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
 
-    // --- FUNGSI BARU: HIT DETECTION LEBIH BAIK UNTUK STAMP TEKS ---
-  function getTextBoundingBox() {
-      if (!imgLoaded || !sourceImage) return null;
+    function getTextBoundingBox() {
+        if (!imgLoaded || !sourceImage) return null;
 
-      const text = buildStampText();
-      if (!text.trim()) return null;
+        const text = buildStampText();
+        if (!text.trim()) return null;
 
-      const fSize = parseInt(sizeSlider.value);
-      const lines = text.split('\n');
-      const lineHeight = fSize * 1.25;
+        const fSize = parseInt(sizeSlider.value);
+        const lines = text.split('\n');
+        const lineHeight = fSize * 1.25;
 
-      // Sementara set font untuk measureText
-      ctx.font = `bold ${fSize}px "${fontSelect.value}"`;
+        ctx.font = `bold ${fSize}px "${fontSelect.value}"`;
 
-      let maxWidth = 0;
-      lines.forEach(line => {
-          const metrics = ctx.measureText(line);
-          if (metrics.width > maxWidth) maxWidth = metrics.width;
-      });
+        let maxWidth = 0;
+        lines.forEach(line => {
+            const metrics = ctx.measureText(line);
+            if (metrics.width > maxWidth) maxWidth = metrics.width;
+        });
 
-      const textWidth = maxWidth;
-      const textHeight = lines.length * lineHeight;
+        const textWidth = maxWidth;
+        const textHeight = lines.length * lineHeight;
 
-      // Bounding box (actualBounds tanpa shadow)
-      return {
-          x: stampX,
-          y: stampY - fSize, // karena fillText mulai dari baseline atas
-          w: textWidth,
-          h: textHeight
-      };
-  }
+        return { x: stampX, y: stampY - fSize, w: textWidth, h: textHeight };
+    }
 
-  function isPointInTextArea(posX, posY) {
-      const bbox = getTextBoundingBox();
-      if (!bbox) return false;
+    function isPointInTextArea(posX, posY) {
+        const bbox = getTextBoundingBox();
+        if (!bbox) return false;
+        const padding = 40;
+        return (
+            posX >= bbox.x - padding &&
+            posX <= bbox.x + bbox.w + padding &&
+            posY >= bbox.y - padding &&
+            posY <= bbox.y + bbox.h + padding
+        );
+    }
+	
+function cancelCrop() {
+    if (!cropMode) return;
+    cropMode = false;
+    cropRect = null;
+    cropAction = null;
+    
+    // Kembalikan tampilan tombol ke semula
+    const toggleCropBtn = document.getElementById('toggleCrop');
+    toggleCropBtn.textContent = '✂ Potong';
+    toggleCropBtn.classList.remove('btn-danger'); 
+    toggleCropBtn.classList.add('btn-secondary');
+    requestRender();
+}
 
-      // Padding besar untuk kemudahan sentuh (40px di semua sisi)
-      const padding = 40;
 
-      return (
-          posX >= bbox.x - padding &&
-          posX <= bbox.x + bbox.w + padding &&
-          posY >= bbox.y - padding &&
-          posY <= bbox.y + bbox.h + padding
-      );
-  }
+    function handleStart(clientX, clientY) {
+        const pos = getPos(clientX, clientY);
+        dragStartPos = pos;
 
-  // --- PERBAIKAN HANDLE START (drag stamp lebih leluasa) ---
-  function handleStart(clientX, clientY) {
-      const pos = getPos(clientX, clientY);
-      dragStartPos = pos;
+        if (cropMode) {
+            const hit = getHitRegion(pos.x, pos.y);
+            if (hit) {
+                cropAction = hit;
+                initialCropRect = { ...cropRect };
+            } else {
+                cancelCrop();
+            }
+        } else {
+            if (isPointInTextArea(pos.x, pos.y)) {
+                draggingStamp = true;
+                const bbox = getTextBoundingBox();
+                if (bbox) {
+                    dragStartPos.offsetX = pos.x - stampX;
+                    dragStartPos.offsetY = pos.y - (stampY - parseInt(sizeSlider.value));
+                }
+            }
+        }
+    }
 
-      if (cropMode) {
-          const hit = getHitRegion(pos.x, pos.y);
-          if (hit) {
-              cropAction = hit;
-              initialCropRect = { ...cropRect };
-          } else {
-              cropAction = 'create';
-              cropRect = { x: pos.x, y: pos.y, w: 0, h: 0 };
-          }
-      } else {
-          // PERBAIKAN: Deteksi drag stamp berdasarkan bounding box teks + padding
-          if (isPointInTextArea(pos.x, pos.y)) {
-              draggingStamp = true;
-              // Offset agar posisi cursor tetap konsisten saat drag
-              const bbox = getTextBoundingBox();
-              if (bbox) {
-                  dragStartPos.offsetX = pos.x - stampX;
-                  dragStartPos.offsetY = pos.y - (stampY - parseInt(sizeSlider.value));
-              }
-          }
-      }
-  }
+    function handleMove(clientX, clientY) {
+        const pos = getPos(clientX, clientY);
 
-  function handleMove(clientX, clientY) {
-      const pos = getPos(clientX, clientY);
+        if (cropMode && cropAction) {
+            if (cropAction === 'create') {
+                cropRect.w = pos.x - dragStartPos.x;
+                cropRect.h = pos.y - dragStartPos.y;
+            } 
+            else if (cropAction === 'move') {
+                const dx = pos.x - dragStartPos.x;
+                const dy = pos.y - dragStartPos.y;
+                cropRect.x = initialCropRect.x + dx;
+                cropRect.y = initialCropRect.y + dy;
+            } 
+            else {
+                const dx = pos.x - dragStartPos.x;
+                const dy = pos.y - dragStartPos.y;
+                const i = initialCropRect;
 
-      if (cropMode && cropAction) {
-          if (cropAction === 'create') {
-              cropRect.w = pos.x - dragStartPos.x;
-              cropRect.h = pos.y - dragStartPos.y;
-          } 
-          else if (cropAction === 'move') {
-              const dx = pos.x - dragStartPos.x;
-              const dy = pos.y - dragStartPos.y;
-              cropRect.x = initialCropRect.x + dx;
-              cropRect.y = initialCropRect.y + dy;
-          } 
-          else {
-              const dx = pos.x - dragStartPos.x;
-              const dy = pos.y - dragStartPos.y;
-              const i = initialCropRect;
+                if (cropAction.includes('n')) { cropRect.y = i.y + dy; cropRect.h = i.h - dy; }
+                if (cropAction.includes('s')) { cropRect.h = i.h + dy; }
+                if (cropAction.includes('w')) { cropRect.x = i.x + dx; cropRect.w = i.w - dx; }
+                if (cropAction.includes('e')) { cropRect.w = i.w + dx; }
+            }
+            requestRender();
+        } 
+        else if (draggingStamp) {
+            if (dragStartPos.offsetX !== undefined) {
+                stampX = pos.x - dragStartPos.offsetX;
+                stampY = pos.y - dragStartPos.offsetY + parseInt(sizeSlider.value); 
+            } else {
+                stampX = pos.x;
+                stampY = pos.y;
+            }
+            requestRender();
+        }
+    }
 
-              if (cropAction.includes('n')) { cropRect.y = i.y + dy; cropRect.h = i.h - dy; }
-              if (cropAction.includes('s')) { cropRect.h = i.h + dy; }
-              if (cropAction.includes('w')) { cropRect.x = i.x + dx; cropRect.w = i.w - dx; }
-              if (cropAction.includes('e')) { cropRect.w = i.w + dx; }
-          }
-          requestRender();
-      } 
-      else if (draggingStamp) {
-          // PERBAIKAN: Gunakan offset agar grip tidak "snap" ke kiri
-          if (dragStartPos.offsetX !== undefined) {
-              stampX = pos.x - dragStartPos.offsetX;
-              stampY = pos.y - dragStartPos.offsetY + parseInt(sizeSlider.value); // kompensasi baseline
-          } else {
-              stampX = pos.x;
-              stampY = pos.y;
-          }
-          requestRender();
-      }
-  }
-
-  // handleEnd tetap sama
-  function handleEnd() {
-      if (cropMode && cropRect) {
-          if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
-          if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
-      }
-      cropAction = null; 
-      draggingStamp = false; 
-      initialCropRect = null;
-      // Reset offset
-      delete dragStartPos.offsetX;
-      delete dragStartPos.offsetY;
-  }
+    function handleEnd() {
+        if (cropMode && cropRect) {
+            if (cropRect.w < 0) { cropRect.x += cropRect.w; cropRect.w = Math.abs(cropRect.w); }
+            if (cropRect.h < 0) { cropRect.y += cropRect.h; cropRect.h = Math.abs(cropRect.h); }
+        }
+        cropAction = null; 
+        draggingStamp = false; 
+        initialCropRect = null;
+        delete dragStartPos.offsetX;
+        delete dragStartPos.offsetY;
+    }
 
     // --- EVENT LISTENERS ---
     canvasContainer.addEventListener('touchstart', (e) => {
@@ -806,20 +835,18 @@ let searchDebounce = null;
     }, {passive: false});
 
     canvasContainer.addEventListener('touchend', handleEnd);
-	  document.addEventListener("click", (e) => {
-  if (!e.target.closest(".location-wrapper")) {
-    suggestionsBox.style.display = "none";
-  }
-});
-
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".location-wrapper")) {
+        suggestionsBox.style.display = "none";
+      }
+    });
 
     // MOUSE
     canvasContainer.addEventListener('mousedown', (e) => { if(!imgLoaded) return; handleStart(e.clientX, e.clientY); });
     window.addEventListener('mousemove', (e) => { if(!imgLoaded) return; if (e.buttons === 1) handleMove(e.clientX, e.clientY); });
     window.addEventListener('mouseup', handleEnd);
 
-
-    // --- 5. INPUT FILE & LAINNYA ---
+    // --- 5. INPUT FILE & KAMERA ---
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0]; if (!file) return;
         isNewFile = true; const reader = new FileReader();
@@ -830,7 +857,6 @@ let searchDebounce = null;
         }; reader.readAsDataURL(file);
     });
 
-    // KAMERA
     const openCameraBtn = document.getElementById('openCameraBtn');
     const cameraModal = document.getElementById('cameraModal');
     const cameraVideo = document.getElementById('cameraVideo');
@@ -872,7 +898,6 @@ let searchDebounce = null;
         const n = new Date(); dtInput.value=new Date(n-n.getTimezoneOffset()*60000).toISOString().slice(0,16);
     });
 
-    // ROTATE
     rotateBtn.addEventListener('click', () => {
         if(!imgLoaded || !sourceImage) return;
         const origT = rotateBtn.textContent; rotateBtn.textContent = '⏳'; 
@@ -889,7 +914,6 @@ let searchDebounce = null;
         });
     });
 
-    // CROP BUTTON
     toggleCropBtn.addEventListener('click', () => {
         if (cropMode) {
             if (cropRect && cropRect.w > 10 && cropRect.h > 10) applyCrop();
@@ -918,444 +942,324 @@ let searchDebounce = null;
         sourceImage = tC; isUsingCanvasSource = true; setupHighResCanvas();
     }
 
-    // ============================================================
-    // PERBAIKAN FITUR PETA & GPS (FINAL SINKRON)
-    // ============================================================
-    
-    // Variabel Global khusus Peta
+    // --- PETA & LOKASI ---
     let mapInstance = null;
     let mapMarker = null;
-    let currentLat = -7.605, currentLon = 111.905; // Koordinat default
+    let currentLat = -7.605, currentLon = 111.905;
     let gpsWatchId = null;
-let followGPS = false;
-	  
-// ===============================
-// DEBOUNCE REVERSE GEOCODING
-// ===============================
-let debounceTimer = null;
+    let followGPS = false;
+    let debounceTimer = null;
 
-function debounceReverseGeocode(lat, lon, delay = 700) {
-  if (debounceTimer) clearTimeout(debounceTimer);
-
-  debounceTimer = setTimeout(() => {
-    reverseGeocode(lat, lon);
-  }, delay);
-}
-	  
-// ==========================================
-// FORWARD GEOCODING (AUTOCOMPLETE LOKASI)
-// ==========================================
-async function searchLocation(query) {
-  try {
-    const url =
-      `https://us1.locationiq.com/v1/search.php` +
-      `?key=${LOCATIONIQ_KEY}` +
-      `&q=${encodeURIComponent(query)}` +
-      `&format=json` +
-      `&limit=5`;
-
-    const response = await fetch(url);
-    const results = await response.json();
-
-    if (!Array.isArray(results)) {
-      suggestionsBox.style.display = "none";
-      return;
+    function debounceReverseGeocode(lat, lon, delay = 700) {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { reverseGeocode(lat, lon); }, delay);
+    }
+    
+    async function searchLocation(query) {
+      try {
+        const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(query)}&format=json&limit=5`;
+        const response = await fetch(url);
+        const results = await response.json();
+        if (!Array.isArray(results)) { suggestionsBox.style.display = "none"; return; }
+        suggestionsBox.innerHTML = "";
+        results.forEach(item => {
+          const div = document.createElement("div");
+          div.className = "suggestion-item";
+          div.textContent = item.display_name;
+          div.onclick = () => {
+            followGPS = false; stopFollowGPS(); gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+            locInput.value = `${item.display_name}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
+            suggestionsBox.style.display = "none"; requestRender();
+            currentLat = parseFloat(item.lat); currentLon = parseFloat(item.lon);
+            if (mapInstance) { mapInstance.setView([currentLat, currentLon], 16); if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]); }
+          };
+          suggestionsBox.appendChild(div);
+        });
+        suggestionsBox.style.display = "block";
+      } catch (err) { console.error("Autocomplete error:", err); suggestionsBox.style.display = "none"; }
     }
 
-    suggestionsBox.innerHTML = "";
-
-    results.forEach(item => {
-      const div = document.createElement("div");
-      div.className = "suggestion-item";
-      div.textContent = item.display_name;
-
-      div.onclick = () => {
-		  followGPS = false;
-stopFollowGPS();
-gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
-
-        locInput.value =
-          `${item.display_name}\n(${parseFloat(item.lat).toFixed(5)}, ${parseFloat(item.lon).toFixed(5)})`;
-
-        suggestionsBox.style.display = "none";
-        requestRender();
-
-        currentLat = parseFloat(item.lat);
-        currentLon = parseFloat(item.lon);
-
-        if (mapInstance) {
-          mapInstance.setView([currentLat, currentLon], 16);
-          if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
-        }
-      };
-
-      suggestionsBox.appendChild(div);
-    });
-
-    suggestionsBox.style.display = "block";
-
-  } catch (err) {
-    console.error("Autocomplete error:", err);
-    suggestionsBox.style.display = "none";
-  }
-}
-
-            async function reverseGeocode(lat, lon) {
-  try {
-    const url =
-      `https://us1.locationiq.com/v1/reverse.php` +
-      `?key=${LOCATIONIQ_KEY}` +
-      `&lat=${lat}` +
-      `&lon=${lon}` +
-      `&format=json`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data.display_name) throw "No address";
-
-    const parts = data.display_name.split(',');
-    const cleanAddress = parts.slice(0, 4).join(',').trim();
-
-    locInput.value = `${cleanAddress}\n(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-  } catch {
-    locInput.value = `(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-  }
-
-  requestRender();
-}
+    async function reverseGeocode(lat, lon) {
+      try {
+        const url = `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_KEY}&lat=${lat}&lon=${lon}&format=json`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!data.display_name) throw "No address";
+        const parts = data.display_name.split(',');
+        const cleanAddress = parts.slice(0, 4).join(',').trim();
+        locInput.value = `${cleanAddress}\n(${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+      } catch { locInput.value = `(${lat.toFixed(5)}, ${lon.toFixed(5)})`; }
+      requestRender();
+    }
 
     function startFollowGPS() {
-  if (!navigator.geolocation) {
-    alert("GPS tidak didukung");
-    return;
-  }
+      if (!navigator.geolocation) { alert("GPS tidak didukung"); return; }
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          currentLat = pos.coords.latitude; currentLon = pos.coords.longitude;
+          if (mapInstance) { mapInstance.setView([currentLat, currentLon], 17); if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]); }
+          debounceReverseGeocode(currentLat, currentLon);
+        },
+        () => alert("Gagal akses GPS"), { enableHighAccuracy: true }
+      );
+    }
+    function stopFollowGPS() { if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; } }
 
-  gpsWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      currentLat = pos.coords.latitude;
-      currentLon = pos.coords.longitude;
-
-      if (mapInstance) {
-        mapInstance.setView([currentLat, currentLon], 17);
-        if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
-      }
-
-      debounceReverseGeocode(currentLat, currentLon);
-    },
-    () => alert("Gagal akses GPS"),
-    { enableHighAccuracy: true }
-  );
-}
-
-function stopFollowGPS() {
-  if (gpsWatchId) {
-    navigator.geolocation.clearWatch(gpsWatchId);
-    gpsWatchId = null;
-  }
-}
-
-
-    // 2. LOGIKA TOMBOL GPS
     gpsBtn.addEventListener('click', () => {
-		followGPS = false;
-stopFollowGPS();
-gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
-
+        followGPS = false; stopFollowGPS(); gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
         if (!navigator.geolocation) return alert("GPS tidak didukung");
-        
         gpsBtn.innerHTML = "⏳ Mencari...";
         navigator.geolocation.getCurrentPosition(async (p) => {
-            currentLat = p.coords.latitude;
-            currentLon = p.coords.longitude;
-            
+            currentLat = p.coords.latitude; currentLon = p.coords.longitude;
             await debounceReverseGeocode(currentLat, currentLon);
             gpsBtn.innerHTML = "📍 Cek GPS";
-            
-            // Update posisi marker jika peta sedang terbuka
-            if (mapInstance) {
-                mapInstance.setView([currentLat, currentLon], 16);
-                if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]);
-            }
-        }, (err) => {
-            alert("Gagal akses GPS. Pastikan izin lokasi aktif.");
-            gpsBtn.innerHTML = "📍 Cek GPS";
-        }, { enableHighAccuracy: true });
+            if (mapInstance) { mapInstance.setView([currentLat, currentLon], 16); if (mapMarker) mapMarker.setLatLng([currentLat, currentLon]); }
+        }, (err) => { alert("Gagal akses GPS."); gpsBtn.innerHTML = "📍 Cek GPS"; }, { enableHighAccuracy: true });
     });
 
-// ==================================================
-// EVENT LISTENER FOLLOW GPS (REAL-TIME)
-// ==================================================
-gpsFollowBtn.addEventListener('click', () => {
-  followGPS = !followGPS;
+    gpsFollowBtn.addEventListener('click', () => {
+      followGPS = !followGPS;
+      gpsFollowBtn.textContent = followGPS ? "🧭 Ikuti GPS: ON" : "🧭 Ikuti GPS: OFF";
+      if (followGPS) startFollowGPS(); else stopFollowGPS();
+    });
 
-  gpsFollowBtn.textContent = followGPS
-    ? "🧭 Ikuti GPS: ON"
-    : "🧭 Ikuti GPS: OFF";
-
-  if (followGPS) {
-    startFollowGPS();
-  } else {
-    stopFollowGPS();
-  }
-});
-
-
-    // 3. LOGIKA PETA INTERAKTIF
+    // PETA
     const mapModal = document.getElementById('mapModal');
     const closeMapBtn = document.getElementById('closeMapBtn');
-    // Ambil referensi ke tombol follow gps agar tidak error
+    
     function initLeafletMap() {
-        if (mapInstance) return; // Jangan inisialisasi ulang jika sudah ada
-
+        if (mapInstance) return;
         mapInstance = L.map('mapContainer').setView([currentLat, currentLon], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstance);
-
-        // Tambah fitur Search (Pencarian)
         const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
             .on('markgeocode', function(e) {
-                const bbox = e.geocode.center;
-                // Pindahkan marker dan peta ke lokasi pencarian
-                mapInstance.setView([bbox.lat, bbox.lng], 16);
-                updateMarkerPosition(bbox.lat, bbox.lng);
-            })
-            .addTo(mapInstance);
-
-        // Klik pada peta untuk pilih lokasi
-        mapInstance.on('click', (e) => {
-            // Update marker
-            updateMarkerPosition(e.latlng.lat, e.latlng.lng);
-            // Opsional: Langsung pilih dan tutup modal (jika diinginkan)
-            // selectAndClose(e.latlng.lat, e.latlng.lng);
-        });
+                const bbox = e.geocode.center; mapInstance.setView([bbox.lat, bbox.lng], 16); updateMarkerPosition(bbox.lat, bbox.lng);
+            }).addTo(mapInstance);
+        mapInstance.on('click', (e) => { updateMarkerPosition(e.latlng.lat, e.latlng.lng); });
     }
 
-    // Fungsi Helper untuk memindahkan marker
     function updateMarkerPosition(lat, lon) {
-        currentLat = lat;
-        currentLon = lon;
-        
-        // Matikan follow GPS jika user memindahkan marker manual
-        followGPS = false;
-        stopFollowGPS();
+        currentLat = lat; currentLon = lon;
+        followGPS = false; stopFollowGPS();
         if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
 
-        if (mapMarker) {
-            mapMarker.setLatLng([lat, lon]);
-        } else {
+        if (mapMarker) { mapMarker.setLatLng([lat, lon]); } 
+        else {
             mapMarker = L.marker([lat, lon], { draggable: true }).addTo(mapInstance);
-            
-            // Event jika marker digeser manual (drag)
             mapMarker.on('dragend', (e) => {
-                const pos = e.target.getLatLng();
-                currentLat = pos.lat;
-                currentLon = pos.lng;
-                
-                followGPS = false; 
-                stopFollowGPS();
+                const pos = e.target.getLatLng(); currentLat = pos.lat; currentLon = pos.lng;
+                followGPS = false; stopFollowGPS();
                 if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
-                
-                // Update teks alamat di input utama
                 debounceReverseGeocode(currentLat, currentLon);
             });
         }
-        
-        // Update teks alamat di input utama (realtime saat klik peta)
         debounceReverseGeocode(lat, lon);
     }
 
-    // Fungsi Final saat lokasi dipilih (bisa dipanggil via tombol OK atau Double Click jika mau dikembangkan)
-    function selectAndClose(lat, lon) {
-        updateMarkerPosition(lat, lon);
-        mapModal.style.display = 'none';
-    }
-
-    // --- EVENT LISTENERS TOMBOL PETA ---
-
-    // 1. Tombol Buka Peta
     document.getElementById('mapBtn').addEventListener('click', () => {
         mapModal.style.display = 'flex';
-        
-        // Timeout agar render peta tidak abu-abu (bug leaflet di modal hidden)
         setTimeout(() => {
-            initLeafletMap();
-            mapInstance.invalidateSize(); 
-            mapInstance.setView([currentLat, currentLon], 15);
-            
-            if (mapMarker) {
-                mapMarker.setLatLng([currentLat, currentLon]);
-            } else {
+            initLeafletMap(); mapInstance.invalidateSize(); mapInstance.setView([currentLat, currentLon], 15);
+            if (mapMarker) { mapMarker.setLatLng([currentLat, currentLon]); } 
+            else {
                 mapMarker = L.marker([currentLat, currentLon], { draggable: true }).addTo(mapInstance);
-                
-                // Tambahkan event dragend disini agar marker baru pun bisa didrag
                 mapMarker.on('dragend', (e) => {
-                    const pos = e.target.getLatLng();
-                    currentLat = pos.lat;
-                    currentLon = pos.lng;
-                    followGPS = false; 
-                    stopFollowGPS();
+                    const pos = e.target.getLatLng(); currentLat = pos.lat; currentLon = pos.lng;
+                    followGPS = false; stopFollowGPS();
                     if (gpsFollowBtn) gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
                     debounceReverseGeocode(currentLat, currentLon);
                 });
             }
-        }, 200); // Tutup setTimeout
-    }); // Tutup addEventListener mapBtn
+        }, 200);
+    });
 
-
-    // 2. Tombol Tutup Peta (X)
     closeMapBtn.addEventListener('click', () => {
-    followGPS = false;
-    stopFollowGPS();
-    gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
-    mapModal.style.display = 'none';
-});
+        followGPS = false; stopFollowGPS(); gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+        mapModal.style.display = 'none';
+    });
 
-	
-// ==========================================
-// PERBAIKAN TOTAL EVENT LISTENERS
-// ==========================================
-    // --- 1. FUNGSI ADJUST SIZE (Tombol + / -) ---
-window.adjustSize = function(val) {
-    let current = parseInt(sizeSlider.value);
-    let newVal = current + val;
-    if (newVal < 20) newVal = 20;
-    if (newVal > 300) newVal = 300;
-    sizeSlider.value = newVal;
-    sizeValDisplay.textContent = newVal + 'px';
-    requestRender();
-};
-
-// --- 2. SLIDER & INPUT RESPONSIVE ---
-sizeSlider.addEventListener('input', (e) => {
-    sizeValDisplay.textContent = e.target.value + 'px';
-    requestRender();
-});
-
-opacitySlider.addEventListener('input', (e) => {
-    opacityValDisplay.textContent = e.target.value + '%';
-    requestRender();
-});
-
-// Update Tanggal, Jam, Lokasi, Font secara Realtime
-showDateToggle.addEventListener('change', requestRender);
-dtInput.addEventListener('input', requestRender);
-locInput.addEventListener("input", () => {
-  // 1️⃣ Matikan Follow GPS saat user mulai mengetik
-  followGPS = false;
-  stopFollowGPS();
-  gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
-
-  // 2️⃣ Render teks ke canvas
-  requestRender();
-
-  // 3️⃣ Ambil query baris pertama + sanitasi
-  const query = locInput.value
-    .split('\n')[0]
-    .replace(/[^\w\s.,-]/gi, '')
-    .trim();
-
-  // 4️⃣ Validasi panjang minimal
-  if (query.length < 3) {
-    suggestionsBox.style.display = "none";
-    suggestionsBox.innerHTML = "";
-    return;
-  }
-
-  // 5️⃣ Debounce pencarian
-  if (searchDebounce) clearTimeout(searchDebounce);
-
-  searchDebounce = setTimeout(() => {
-    searchLocation(query);
-  }, 500);
-});
-
-fontSelect.addEventListener('change', requestRender);
-fontColor.addEventListener('input', requestRender);
-
-locInput.addEventListener("scroll", () => {
-  suggestionsBox.style.display = "none";
-});
-          
-// --- 3. TOMBOL RESET (Mereset Posisi Teks & Zoom) ---
-resetViewBtn.addEventListener('click', () => {
-    // Reset Zoom Tampilan
-    viewScale = 1; 
-    viewX = 0; 
-    viewY = 0;
-    updateTransform();
-
-    // Reset Posisi Teks (Stamp) ke Kiri Bawah standar
-    if (imgLoaded) {
-        stampX = canvas.width * 0.05; 
-        stampY = canvas.height - (canvas.height * 0.1); 
-    }
-    requestRender();
-});
-
-// --- 4. TOMBOL HAPUS FOTO ---
-clearBtn.addEventListener('click', () => {
-    if(!confirm("Hapus foto ini?")) return;
-    sourceImage = null;
-    imgLoaded = false;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.width = 300; 
-    canvas.height = 300;
-    draw();
-    fileInput.value = '';
-});
-
-// --- 5. TOMBOL SIMPAN (DENGAN AUTO-COMPRESS MAX 4MB) ---
-downloadFinalBtn.addEventListener('click', () => {
-    if (!imgLoaded) return alert("Belum ada foto untuk disimpan!");
-    
-    let quality = 0.92; // Mulai dari kualitas sangat tinggi
-    let dataURL = canvas.toDataURL('image/jpeg', quality);
-    
-    // Fungsi hitung ukuran file dari Base64
-    const getFileSize = (base64String) => {
-        const stringLength = base64String.length - "data:image/jpeg;base64,".length;
-        return stringLength * (3 / 4);
+    // --- HELPER SIZE ---
+    window.adjustSize = function(val) {
+        let current = parseInt(sizeSlider.value);
+        let newVal = current + val;
+        if (newVal < 20) newVal = 20; if (newVal > 300) newVal = 300;
+        sizeSlider.value = newVal; sizeValDisplay.textContent = newVal + 'px'; requestRender();
     };
 
-    let fileSize = getFileSize(dataURL);
-    const MAX_SIZE_BYTE = 4 * 1024 * 1024; // 4MB dalam Bytes
+    sizeSlider.addEventListener('input', (e) => { sizeValDisplay.textContent = e.target.value + 'px'; requestRender(); });
+    opacitySlider.addEventListener('input', (e) => { opacityValDisplay.textContent = e.target.value + '%'; requestRender(); });
+    showDateToggle.addEventListener('change', requestRender);
+    dtInput.addEventListener('input', requestRender);
+    locInput.addEventListener("input", () => {
+      followGPS = false; stopFollowGPS(); gpsFollowBtn.textContent = "🧭 Ikuti GPS: OFF";
+      requestRender();
+      const query = locInput.value.split('\n')[0].replace(/[^\w\s.,-]/gi, '').trim();
+      if (query.length < 3) { suggestionsBox.style.display = "none"; return; }
+      if (searchDebounce) clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => { searchLocation(query); }, 500);
+    });
+    fontSelect.addEventListener('change', requestRender);
+    fontColor.addEventListener('input', requestRender);
+    locInput.addEventListener("scroll", () => { suggestionsBox.style.display = "none"; });
+          
+    resetViewBtn.addEventListener('click', () => {
+        viewScale = 1; viewX = 0; viewY = 0; updateTransform();
+        if (imgLoaded) { stampX = canvas.width * 0.05; stampY = canvas.height - (canvas.height * 0.1); }
+        requestRender();
+    });
 
-    // Loop Kompresi: Jika > 4MB, turunkan kualitas 5% terus menerus
-    while (fileSize > MAX_SIZE_BYTE && quality > 0.1) {
-        quality -= 0.05;
-        dataURL = canvas.toDataURL('image/jpeg', quality);
-        fileSize = getFileSize(dataURL);
+    clearBtn.addEventListener('click', () => {
+        if(!confirm("Hapus foto ini?")) return;
+        sourceImage = null; imgLoaded = false; ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = 300; canvas.height = 300; draw(); fileInput.value = '';
+    });
+
+    // ============================================================
+    // FITUR TAMBAHAN: PENYIMPANAN FOLDER & PENAMAAN OTOMATIS
+    // ============================================================
+
+    let dirHandle = null;
+    const storageBtn = document.getElementById('storageBtn');
+    const storageModal = document.getElementById('storageModal');
+    const pickDirBtn = document.getElementById('pickDirBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+    const filePrefixInput = document.getElementById('filePrefix');
+    const fileCounterInput = document.getElementById('fileCounter');
+    const filenamePreview = document.getElementById('filenamePreview');
+    const dirStatus = document.getElementById('dirStatus');
+    const storageInfo = document.getElementById('storageInfo');
+    const activeFolderLabel = document.getElementById('activeFolderLabel');
+
+    function updatePreview() {
+      const prefix = filePrefixInput.value.replace(/[^a-zA-Z0-9_-]/g, ""); 
+      const count = String(fileCounterInput.value).padStart(3, '0');
+      filenamePreview.textContent = `${prefix}${count}.jpg`;
     }
 
-    // Eksekusi Download
-    const timestamp = new Date().getTime();
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = `RekoStamp_${timestamp}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if(filePrefixInput) filePrefixInput.addEventListener('input', updatePreview);
+    if(fileCounterInput) fileCounterInput.addEventListener('input', updatePreview);
 
-    console.log(`Berhasil disimpan. Kualitas: ${Math.round(quality*100)}%, Ukuran: ${(fileSize/1024/1024).toFixed(2)} MB`);
+    // Event Listener Modal
+    if(storageBtn) {
+        storageBtn.addEventListener('click', () => {
+            storageModal.style.display = 'flex';
+            updatePreview();
+        });
+    }
+
+    const closeSettings = () => { storageModal.style.display = 'none'; };
+    if(saveSettingsBtn) saveSettingsBtn.addEventListener('click', closeSettings);
+    if(cancelSettingsBtn) cancelSettingsBtn.addEventListener('click', closeSettings);
+
+    // Logika Pick Folder
+    if(pickDirBtn) {
+        pickDirBtn.addEventListener('click', async () => {
+            try {
+            if (!('showDirectoryPicker' in window)) {
+                alert("Browser ini tidak mendukung pemilihan folder otomatis. Gunakan Chrome Desktop atau Edge.");
+                return;
+            }
+            dirHandle = await window.showDirectoryPicker();
+            dirStatus.textContent = `✅ Folder Terpilih: ${dirHandle.name}`;
+            dirStatus.style.color = '#10b981';
+            storageInfo.style.display = 'block';
+            activeFolderLabel.textContent = dirHandle.name;
+            alert("Folder berhasil diset! Foto akan disimpan otomatis ke folder ini.");
+            } catch (err) {
+            console.warn(err);
+            alert("Gagal memilih folder atau dibatalkan.");
+            }
+        });
+    }
+
+    // --- OVERRIDE TOMBOL SIMPAN ---
+    // Mengganti tombol lama dengan yang baru (clone) untuk menghapus event listener lama
+    
+    const oldBtn = document.getElementById('downloadFinal');
+    if(oldBtn) {
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+        newBtn.addEventListener('click', async () => {
+            if (!imgLoaded) return alert("Belum ada foto untuk disimpan!");
+            
+            newBtn.textContent = "⏳ Memproses...";
+            newBtn.disabled = true;
+
+            // A. KOMPRESI
+            let quality = 0.92;
+            let dataURL = canvas.toDataURL('image/jpeg', quality);
+            const getFileSize = (base64String) => (base64String.length - "data:image/jpeg;base64,".length) * (3 / 4);
+            
+            while (getFileSize(dataURL) > 4 * 1024 * 1024 && quality > 0.1) {
+                quality -= 0.05;
+                dataURL = canvas.toDataURL('image/jpeg', quality);
+            }
+
+            // B. PENYIMPANAN
+            const prefix = filePrefixInput ? filePrefixInput.value.replace(/[^a-zA-Z0-9_-]/g, "") : "RekoStamp_";
+            const count = fileCounterInput ? String(fileCounterInput.value).padStart(3, '0') : "001";
+            const finalName = `${prefix}${count}.jpg`;
+
+            if (dirHandle) {
+                try {
+                    if ((await dirHandle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+                        if ((await dirHandle.requestPermission({ mode: 'readwrite' })) !== 'granted') {
+                            throw new Error("Izin folder ditolak.");
+                        }
+                    }
+                    const fileHandle = await dirHandle.getFileHandle(finalName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    const res = await fetch(dataURL);
+                    const blob = await res.blob();
+                    
+                    await writable.write(blob);
+                    await writable.close();
+
+                    let nextVal = parseInt(fileCounterInput.value) + 1;
+                    fileCounterInput.value = nextVal;
+                    updatePreview();
+
+                    alert(`Berhasil disimpan: ${finalName}\nke folder: ${dirHandle.name}`);
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Gagal menyimpan ke folder. Mengalihkan ke download biasa.");
+                    fallbackDownload(dataURL, finalName);
+                }
+            } else {
+                fallbackDownload(dataURL, finalName);
+                if(fileCounterInput) {
+                    let nextVal = parseInt(fileCounterInput.value) + 1;
+                    fileCounterInput.value = nextVal;
+                    updatePreview();
+                }
+            }
+
+            newBtn.textContent = "⬇ Simpan (Max 4MB)";
+            newBtn.disabled = false;
+        });
+    }
+
+    function fallbackDownload(url, name) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+	
+	
+	canvasContainer.addEventListener('mousedown', (e) => {
+    // Jika klik terjadi pada container (area luar kanvas) saat mode crop aktif
+    if (e.target === canvasContainer && cropMode) {
+        cancelCrop();
+    }
 });
 
 
-    
   </script>
-	
-  
-	
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
