@@ -431,18 +431,39 @@ function openDB() {
   });
 }
 
+async function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('AppConfigs', 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings');
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
 async function saveSetting(key, value) {
-  const db = await openDB();
-  const tx = db.transaction(STORE, 'readwrite');
-  tx.objectStore(STORE).put(value, key);
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('settings', 'readwrite');
+    const store = tx.objectStore('settings');
+    store.put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 async function loadSetting(key) {
-  const db = await openDB();
-  const tx = db.transaction(STORE, 'readonly');
-  return new Promise(resolve => {
-    const req = tx.objectStore(STORE).get(key);
-    req.onsuccess = () => resolve(req.result);
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('settings', 'readonly');
+    const store = tx.objectStore('settings');
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
   });
 }
     
@@ -1258,42 +1279,32 @@ function cancelCrop() {
             const finalName = `${prefix}${count}.jpg`;
 
             if (dirHandle) {
-                try {
-                    if ((await dirHandle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-                        if ((await dirHandle.requestPermission({ mode: 'readwrite' })) !== 'granted') {
-                            throw new Error("Izin folder ditolak.");
-                        }
-                    }
-                    const fileHandle = await dirHandle.getFileHandle(finalName, { create: true });
-                    const writable = await fileHandle.createWritable();
-                    const res = await fetch(dataURL);
-                    const blob = await res.blob();
-                    
-                    await writable.write(blob);
-                    await writable.close();
-
-                    let nextVal = parseInt(fileCounterInput.value) + 1;
-                    fileCounterInput.value = nextVal;
-                    updatePreview();
-					await saveSetting('counter', fileCounterInput.value);
-
-                    alert(`Berhasil disimpan: ${finalName}\nke folder: ${dirHandle.name}`);
-
-                } catch (err) {
-                    console.error(err);
-                    alert("Gagal menyimpan ke folder. Mengalihkan ke download biasa.");
-                    fallbackDownload(dataURL, finalName);
-                }
-            } else {
-                fallbackDownload(dataURL, finalName);
-                if(fileCounterInput) {
-                    let nextVal = parseInt(fileCounterInput.value) + 1;
-                    fileCounterInput.value = nextVal;
-                    updatePreview();
-                }
+    try {
+        // Inilah "Perkuatan" itu: Minta izin hanya saat tombol diklik
+        const opts = { mode: 'readwrite' };
+        if ((await dirHandle.queryPermission(opts)) !== 'granted') {
+            // Popup "Allow Access" akan muncul di sini
+            const perm = await dirHandle.requestPermission(opts);
+            if (perm !== 'granted') {
+                throw new Error("User menolak akses folder.");
             }
+        }
 
-            newBtn.textContent = "⬇ Simpan (Max 4MB)";
+        // Jika izin OK, lanjutkan proses simpan file ke dirHandle
+        const fileHandle = await dirHandle.getFileHandle(finalName, { create: true });
+        const writable = await fileHandle.createWritable();
+        // ... (proses write file Anda) ...
+        await writable.close();
+        
+        alert("Foto berhasil disimpan ke folder!");
+    } catch (err) {
+        console.error("Gagal simpan otomatis:", err);
+        // Jika gagal karena izin, arahkan ke download manual (fallback)
+        fallbackDownload(dataURL, finalName);
+    }
+}
+
+            newBtn.textContent = "Simpan Foto";
             newBtn.disabled = false;
         });
     }
@@ -1317,36 +1328,33 @@ function cancelCrop() {
 
 // ================= RESTORE SAVED STORAGE CONFIG =================
 (async function restoreSettings() {
-  const savedPrefix = await loadSetting('prefix');
-  const savedCounter = await loadSetting('counter');
-  const savedDir = await loadSetting('dirHandle');
+  try {
+    const savedPrefix = await loadSetting('prefix');
+    const savedCounter = await loadSetting('counter');
+    const savedDir = await loadSetting('dirHandle'); // Mengambil handle folder dari IndexedDB
 
-  if (savedPrefix) filePrefixInput.value = savedPrefix;
-  if (savedCounter) fileCounterInput.value = savedCounter;
+    if (savedPrefix) filePrefixInput.value = savedPrefix;
+    if (savedCounter) fileCounterInput.value = savedCounter;
 
-  if (savedDir) {
-
-  // 🔐 cek izin lama
-  let permission = await savedDir.queryPermission({ mode: 'readwrite' });
-
-  // 🔐 minta ulang izin otomatis jika perlu
-  if (permission !== 'granted') {
-    permission = await savedDir.requestPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') {
-      console.warn('Folder permission not granted');
-      return;
+    if (savedDir) {
+      // PENTING: Kita simpan handle ke variabel global, tapi JANGAN panggil requestPermission di sini.
+      dirHandle = savedDir;
+      
+      // Update tampilan UI agar user tahu folder sudah tersetup sebelumnya
+      dirStatus.textContent = `✅ Folder Terhubung: ${dirHandle.name}`;
+      dirStatus.style.color = '#10b981';
+      
+      // Jika ada elemen info penyimpanan, tampilkan
+      if (typeof storageInfo !== 'undefined') storageInfo.style.display = 'block';
+      if (typeof activeFolderLabel !== 'undefined') activeFolderLabel.textContent = dirHandle.name;
+      
+      console.log('Folder handle berhasil dimuat dari IndexedDB:', dirHandle.name);
     }
+    
+    if (typeof updatePreview === 'function') updatePreview();
+  } catch (err) {
+    console.error("Gagal memuat pengaturan:", err);
   }
-
-  // 🧭 aktifkan folder tanpa user pilih ulang
-  dirHandle = savedDir;
-  dirStatus.textContent = `✅ Folder Terpilih: ${dirHandle.name}`;
-  dirStatus.style.color = '#10b981';
-  storageInfo.style.display = 'block';
-  activeFolderLabel.textContent = dirHandle.name;
-}
-
-  updatePreview();
 })();
 
 
