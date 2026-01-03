@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reko-stamp-v2.5.1';
+const CACHE_NAME = 'reko-stamp-v2.5.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -53,6 +53,7 @@ self.addEventListener('fetch', (event) => {
   );
 
 });
+
 
 
 
