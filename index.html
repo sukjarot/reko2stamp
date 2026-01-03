@@ -418,6 +418,33 @@
                 .catch(err => console.log('Gagal daftar Service Worker:', err));
         });
     }
+	
+	const DB_NAME = 'reko2stamp-db';
+const STORE = 'settings';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e);
+  });
+}
+
+async function saveSetting(key, value) {
+  const db = await openDB();
+  const tx = db.transaction(STORE, 'readwrite');
+  tx.objectStore(STORE).put(value, key);
+}
+
+async function loadSetting(key) {
+  const db = await openDB();
+  const tx = db.transaction(STORE, 'readonly');
+  return new Promise(resolve => {
+    const req = tx.objectStore(STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+  });
+}
     
     // --- 1. INISIALISASI VARIABEL GLOBAL ---
     const LOCATIONIQ_KEY = 'pk.9415d0e1f42e8b4c9b6d9be7be2f5108';
@@ -1149,7 +1176,14 @@ function cancelCrop() {
     }
 
     const closeSettings = () => { storageModal.style.display = 'none'; };
-    if(saveSettingsBtn) saveSettingsBtn.addEventListener('click', closeSettings);
+    if(saveSettingsBtn) saveSettingsBtn.addEventListener('click', async () => {
+  await saveSetting('prefix', filePrefixInput.value);
+  await saveSetting('counter', fileCounterInput.value);
+
+  if (dirHandle) await saveSetting('dirHandle', dirHandle);
+
+  closeSettings();
+});
     if(cancelSettingsBtn) cancelSettingsBtn.addEventListener('click', closeSettings);
 
     // Logika Pick Folder
@@ -1220,6 +1254,7 @@ function cancelCrop() {
                     let nextVal = parseInt(fileCounterInput.value) + 1;
                     fileCounterInput.value = nextVal;
                     updatePreview();
+					await saveSetting('counter', fileCounterInput.value);
 
                     alert(`Berhasil disimpan: ${finalName}\nke folder: ${dirHandle.name}`);
 
@@ -1258,6 +1293,26 @@ function cancelCrop() {
         cancelCrop();
     }
 });
+
+// ================= RESTORE SAVED STORAGE CONFIG =================
+(async function restoreSettings() {
+  const savedPrefix = await loadSetting('prefix');
+  const savedCounter = await loadSetting('counter');
+  const savedDir = await loadSetting('dirHandle');
+
+  if (savedPrefix) filePrefixInput.value = savedPrefix;
+  if (savedCounter) fileCounterInput.value = savedCounter;
+
+  if (savedDir) {
+    dirHandle = savedDir;
+    dirStatus.textContent = `✅ Folder Terpilih: ${dirHandle.name}`;
+    dirStatus.style.color = '#10b981';
+    storageInfo.style.display = 'block';
+    activeFolderLabel.textContent = dirHandle.name;
+  }
+
+  updatePreview();
+})();
 
 
   </script>
