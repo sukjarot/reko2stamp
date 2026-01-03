@@ -418,54 +418,59 @@
                 .catch(err => console.log('Gagal daftar Service Worker:', err));
         });
     }
+
+    // --- HELPER UNTUK KONVERSI DATA URL KE BLOB (PENTING UNTUK SAVE FOLDER) ---
+    function dataURLToBlob(dataURL) {
+      const parts = dataURL.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const raw = window.atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      return new Blob([uInt8Array], { type: contentType });
+    }
 	
 	const DB_NAME = 'reko2stamp-db';
-const STORE = 'settings';
+    const STORE = 'settings';
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE);
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = e => reject(e);
-  });
-}
+    // (Fix: Menggunakan satu fungsi inisialisasi DB yang konsisten)
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('AppConfigs', 1);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('settings')) {
+            db.createObjectStore('settings');
+          }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
 
-async function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('AppConfigs', 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('settings')) {
-        db.createObjectStore('settings');
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-}
+    async function saveSetting(key, value) {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('settings', 'readwrite');
+        const store = tx.objectStore('settings');
+        store.put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
 
-async function saveSetting(key, value) {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('settings', 'readwrite');
-    const store = tx.objectStore('settings');
-    store.put(value, key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function loadSetting(key) {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('settings', 'readonly');
-    const store = tx.objectStore('settings');
-    const request = store.get(key);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
+    async function loadSetting(key) {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('settings', 'readonly');
+        const store = tx.objectStore('settings');
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
     
     // --- 1. INISIALISASI VARIABEL GLOBAL ---
     const LOCATIONIQ_KEY = 'pk.9415d0e1f42e8b4c9b6d9be7be2f5108';
@@ -477,9 +482,6 @@ async function loadSetting(key) {
     const gpsFollowBtn = document.getElementById('gpsFollowBtn');
     const suggestionsBox = document.getElementById('suggestions');
     
-    // ===============================
-    // AUTOCOMPLETE LOKASI (SEARCH)
-    // ===============================
     let searchDebounce = null;
 
     const sizeSlider = document.getElementById('sizeSlider');
@@ -529,9 +531,8 @@ async function loadSetting(key) {
     const MAX_DIMENSION = 4096;
     const MAX_FILE_SIZE = 4 * 1024 * 1024;
     
-    // --- SETTING UKURAN HANDLE (UPDATED FOR MOBILE) ---
-    const VISUAL_HANDLE_SIZE = 30; // Ukuran kotak biru yang terlihat (px)
-    const TOUCH_HANDLE_SIZE = 80;  // Area sentuh invisible (Sangat besar agar mudah kena jempol)
+    const VISUAL_HANDLE_SIZE = 30; 
+    const TOUCH_HANDLE_SIZE = 80;
 
     // Init Date
     const now = new Date();
@@ -768,19 +769,17 @@ async function loadSetting(key) {
         );
     }
 	
-function cancelCrop() {
-    if (!cropMode) return;
-    cropMode = false;
-    cropRect = null;
-    cropAction = null;
-    
-    // Kembalikan tampilan tombol ke semula
-    const toggleCropBtn = document.getElementById('toggleCrop');
-    toggleCropBtn.textContent = '✂ Potong';
-    toggleCropBtn.classList.remove('btn-danger'); 
-    toggleCropBtn.classList.add('btn-secondary');
-    requestRender();
-}
+    function cancelCrop() {
+        if (!cropMode) return;
+        cropMode = false;
+        cropRect = null;
+        cropAction = null;
+        const toggleCropBtn = document.getElementById('toggleCrop');
+        toggleCropBtn.textContent = '✂ Potong';
+        toggleCropBtn.classList.remove('btn-danger'); 
+        toggleCropBtn.classList.add('btn-secondary');
+        requestRender();
+    }
 
 
     function handleStart(clientX, clientY) {
@@ -805,7 +804,7 @@ function cancelCrop() {
                 }
             }
         }
-		// 🧭 START PAN jika tidak mengenai teks & tidak crop
+		// 🧭 START PAN
         if (!cropMode && !draggingStamp) {
             isPanning = true;
             panStartX = clientX;
@@ -849,7 +848,7 @@ function cancelCrop() {
             }
             requestRender();
         }
-		// 🧭 PAN dengan satu jari
+		// 🧭 PAN
         if (isPanning) {
             const dx = clientX - panStartX;
             const dy = clientY - panStartY;
@@ -895,7 +894,7 @@ function cancelCrop() {
 			const newScale = initialScale * (currentDist / initialPinchDist);
 			viewScale = Math.min(Math.max(0.1, newScale), 10); 
 			updateTransform();
-			return; // ⛔ stop here, no pan on 2 fingers
+			return; 
 		}
 		
 		if (e.touches.length === 1) {
@@ -1219,13 +1218,11 @@ function cancelCrop() {
 
     const closeSettings = () => { storageModal.style.display = 'none'; };
     if(saveSettingsBtn) saveSettingsBtn.addEventListener('click', async () => {
-  await saveSetting('prefix', filePrefixInput.value);
-  await saveSetting('counter', fileCounterInput.value);
-
-  if (dirHandle) await saveSetting('dirHandle', dirHandle);
-
-  closeSettings();
-});
+      await saveSetting('prefix', filePrefixInput.value);
+      await saveSetting('counter', fileCounterInput.value);
+      if (dirHandle) await saveSetting('dirHandle', dirHandle);
+      closeSettings();
+    });
     if(cancelSettingsBtn) cancelSettingsBtn.addEventListener('click', closeSettings);
 
     // Logika Pick Folder
@@ -1249,9 +1246,7 @@ function cancelCrop() {
         });
     }
 
-    // --- OVERRIDE TOMBOL SIMPAN ---
-    // Mengganti tombol lama dengan yang baru (clone) untuk menghapus event listener lama
-    
+    // --- OVERRIDE TOMBOL SIMPAN (DIPERBAIKI) ---
     const oldBtn = document.getElementById('downloadFinal');
     if(oldBtn) {
         const newBtn = oldBtn.cloneNode(true);
@@ -1279,31 +1274,44 @@ function cancelCrop() {
             const finalName = `${prefix}${count}.jpg`;
 
             if (dirHandle) {
-    try {
-        // Inilah "Perkuatan" itu: Minta izin hanya saat tombol diklik
-        const opts = { mode: 'readwrite' };
-        if ((await dirHandle.queryPermission(opts)) !== 'granted') {
-            // Popup "Allow Access" akan muncul di sini
-            const perm = await dirHandle.requestPermission(opts);
-            if (perm !== 'granted') {
-                throw new Error("User menolak akses folder.");
+                try {
+                    // Cek Izin
+                    const opts = { mode: 'readwrite' };
+                    if ((await dirHandle.queryPermission(opts)) !== 'granted') {
+                        const perm = await dirHandle.requestPermission(opts);
+                        if (perm !== 'granted') throw new Error("Akses folder ditolak user");
+                    }
+
+                    // *** BAGIAN PENTING YANG SEBELUMNYA HILANG ***
+                    const fileHandle = await dirHandle.getFileHandle(finalName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    
+                    // 1. Konversi DataURL ke Blob (Binary)
+                    const blob = dataURLToBlob(dataURL);
+                    
+                    // 2. Tulis File
+                    await writable.write(blob);
+                    await writable.close();
+                    
+                    // 3. Update Counter Otomatis
+                    let nextCount = parseInt(fileCounterInput.value) + 1;
+                    fileCounterInput.value = nextCount;
+                    await saveSetting('counter', nextCount); // Simpan counter baru ke DB
+                    updatePreview(); // Update UI di modal settings
+
+                    alert(`✅ Foto tersimpan: ${finalName} di folder ${dirHandle.name}`);
+                } catch (err) {
+                    console.error("Gagal simpan folder:", err);
+                    alert("Gagal simpan ke folder (Izin ditolak atau Error). Mengunduh manual...");
+                    fallbackDownload(dataURL, finalName);
+                }
+            } else {
+                // Mode Download Biasa
+                fallbackDownload(dataURL, finalName);
             }
-        }
-
-        // Jika izin OK, lanjutkan proses simpan file ke dirHandle
-        const fileHandle = await dirHandle.getFileHandle(finalName, { create: true });
-        const writable = await fileHandle.createWritable();
-        // ... (proses write file Anda) ...
-        await writable.close();
-        
-        alert("Foto berhasil disimpan ke folder!");
-    } catch (err) {
-        console.error("Gagal simpan otomatis:", err);
-        // Jika gagal karena izin, arahkan ke download manual (fallback)
-        fallbackDownload(dataURL, finalName);
-    }
-}
-
+            
+            newBtn.textContent = "💾 Simpan Foto";
+            newBtn.disabled = false;
         });
     }
 
@@ -1315,7 +1323,6 @@ function cancelCrop() {
         link.click();
         document.body.removeChild(link);
     }
-	
 	
 	canvasContainer.addEventListener('mousedown', (e) => {
     // Jika klik terjadi pada container (area luar kanvas) saat mode crop aktif
@@ -1329,24 +1336,17 @@ function cancelCrop() {
   try {
     const savedPrefix = await loadSetting('prefix');
     const savedCounter = await loadSetting('counter');
-    const savedDir = await loadSetting('dirHandle'); // Mengambil handle folder dari IndexedDB
+    const savedDir = await loadSetting('dirHandle'); 
 
     if (savedPrefix) filePrefixInput.value = savedPrefix;
     if (savedCounter) fileCounterInput.value = savedCounter;
 
     if (savedDir) {
-      // PENTING: Kita simpan handle ke variabel global, tapi JANGAN panggil requestPermission di sini.
       dirHandle = savedDir;
-      
-      // Update tampilan UI agar user tahu folder sudah tersetup sebelumnya
       dirStatus.textContent = `✅ Folder Terhubung: ${dirHandle.name}`;
       dirStatus.style.color = '#10b981';
-      
-      // Jika ada elemen info penyimpanan, tampilkan
       if (typeof storageInfo !== 'undefined') storageInfo.style.display = 'block';
       if (typeof activeFolderLabel !== 'undefined') activeFolderLabel.textContent = dirHandle.name;
-      
-      console.log('Folder handle berhasil dimuat dari IndexedDB:', dirHandle.name);
     }
     
     if (typeof updatePreview === 'function') updatePreview();
@@ -1354,11 +1354,6 @@ function cancelCrop() {
     console.error("Gagal memuat pengaturan:", err);
   }
 })();
-
-
   </script>
 </body>
 </html>
-
-
-
