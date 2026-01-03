@@ -1304,12 +1304,25 @@ function cancelCrop() {
   if (savedCounter) fileCounterInput.value = savedCounter;
 
   if (savedDir) {
-    dirHandle = savedDir;
-    dirStatus.textContent = `✅ Folder Terpilih: ${dirHandle.name}`;
-    dirStatus.style.color = '#10b981';
-    storageInfo.style.display = 'block';
-    activeFolderLabel.textContent = dirHandle.name;
+    // 🔐 cek izin lama
+  let permission = await savedDir.queryPermission({ mode: 'readwrite' });
+
+  // 🔐 minta ulang izin otomatis jika perlu
+  if (permission !== 'granted') {
+    permission = await savedDir.requestPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') {
+      console.warn('Folder permission not granted');
+      return;
+    }
   }
+
+  // 🧭 aktifkan folder tanpa user pilih ulang
+  dirHandle = savedDir;
+  dirStatus.textContent = `✅ Folder Terpilih: ${dirHandle.name}`;
+  dirStatus.style.color = '#10b981';
+  storageInfo.style.display = 'block';
+  activeFolderLabel.textContent = dirHandle.name;
+}
 
   updatePreview();
 })();
@@ -1318,3 +1331,4 @@ function cancelCrop() {
   </script>
 </body>
 </html>
+
