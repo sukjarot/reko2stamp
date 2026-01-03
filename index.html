@@ -499,7 +499,11 @@ async function loadSetting(key) {
 
     // Pinch Zoom State
     let initialPinchDist = 0; let initialScale = 1; let lastPanX = 0; let lastPanY = 0;
-    let isDrawing = false; 
+    let isDrawing = false;
+	// Pan State (1 finger)
+	let isPanning = false;
+	let panStartX = 0;
+	let panStartY = 0;
 
     const MAX_DIMENSION = 4096;
     const MAX_FILE_SIZE = 4 * 1024 * 1024;
@@ -780,6 +784,12 @@ function cancelCrop() {
                 }
             }
         }
+		// 🧭 START PAN jika tidak mengenai teks & tidak crop
+        if (!cropMode && !draggingStamp) {
+            isPanning = true;
+            panStartX = clientX;
+            panStartY = clientY;
+        }
     }
 
     function handleMove(clientX, clientY) {
@@ -818,6 +828,16 @@ function cancelCrop() {
             }
             requestRender();
         }
+		// 🧭 PAN dengan satu jari
+        if (isPanning) {
+            const dx = clientX - panStartX;
+            const dy = clientY - panStartY;
+            viewX += dx;
+            viewY += dy;
+            panStartX = clientX;
+            panStartY = clientY;
+            updateTransform();
+        }
     }
 
     function handleEnd() {
@@ -830,6 +850,7 @@ function cancelCrop() {
         initialCropRect = null;
         delete dragStartPos.offsetX;
         delete dragStartPos.offsetY;
+		isPanning = false;
     }
 
     // --- EVENT LISTENERS ---
@@ -849,17 +870,17 @@ function cancelCrop() {
         if(!imgLoaded) return;
         e.preventDefault(); 
         if (e.touches.length === 2) {
-            const currentDist = getDist(e.touches);
-            const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-            const newScale = initialScale * (currentDist / initialPinchDist);
-            viewScale = Math.min(Math.max(0.1, newScale), 10); 
-            const dx = centerX - lastPanX; const dy = centerY - lastPanY;
-            viewX += dx; viewY += dy; lastPanX = centerX; lastPanY = centerY; updateTransform();
-        } else if (e.touches.length === 1) {
-            handleMove(e.touches[0].clientX, e.touches[0].clientY);
-        }
-    }, {passive: false});
+			const currentDist = getDist(e.touches);
+			const newScale = initialScale * (currentDist / initialPinchDist);
+			viewScale = Math.min(Math.max(0.1, newScale), 10); 
+			updateTransform();
+			return; // ⛔ stop here, no pan on 2 fingers
+		}
+		
+		if (e.touches.length === 1) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+}, { passive: false });
 
     canvasContainer.addEventListener('touchend', handleEnd);
     document.addEventListener("click", (e) => {
@@ -1304,7 +1325,8 @@ function cancelCrop() {
   if (savedCounter) fileCounterInput.value = savedCounter;
 
   if (savedDir) {
-    // 🔐 cek izin lama
+
+  // 🔐 cek izin lama
   let permission = await savedDir.queryPermission({ mode: 'readwrite' });
 
   // 🔐 minta ulang izin otomatis jika perlu
@@ -1331,4 +1353,3 @@ function cancelCrop() {
   </script>
 </body>
 </html>
-
